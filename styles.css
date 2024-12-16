@@ -1,0 +1,72 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #ffffff; /* テキストの色を白に設定 */
+    background-image: url('image/image.png'); /* デフォルトの背景画像 */
+    background-size: cover; /* 画像を画面全体にフィットさせる */
+    background-position: center -100px; /* 上から100px切り取る（-100pxで上に移動） */
+    background-repeat: no-repeat; /* 画像を繰り返さない */
+}
+
+header {
+    background-color: rgba(53, 66, 74, 0.8); /* 半透明の背景色 */
+    color: #ffffff; /* テキストの色を白に設定 */
+    padding: 20px; /* 上下の余白を追加 */
+    text-align: center; /* テキストを中央に配置 */
+    position: relative; /* 位置を相対的に設定 */
+    z-index: 1; /* 背景画像の上に表示 */
+}
+
+.intro {
+    padding: 20px; /* 内側の余白を追加 */
+    background-color: rgba(0, 0, 0, 0.5); /* 背景を半透明にしてテキストを見やすく */
+    margin-top: 20px; /* ヘッダーとの間にマージンを追加 */
+}
+
+h1 {
+    margin: 0; /* マージンをリセット */
+    font-size: 2em; /* フォントサイズを設定 */
+}
+
+h2 {
+    margin: 0 0 10px; /* タイトルのマージンを調整 */
+}
+
+ul {
+    list-style-type: none; /* リストのスタイルをなしに */
+    padding: 0; /* パディングをなしに */
+}
+
+li {
+    margin: 5px 0; /* リストアイテムのマージンを調整 */
+}
+
+a {
+    text-decoration: none;
+    color: #ffffff; /* リンクの色を白に設定 */
+}
+
+a:hover {
+    text-decoration: underline; /* ホバー時の下線 */
+}
+footer {
+    background-color: rgba(53, 66, 74, 0.8); /* フッターの背景色 */
+    color: #ffffff; /* テキストの色を白に設定 */
+    text-align: center; /* テキストを中央に配置 */
+    padding: 10px 0; /* 上下の余白を追加 */
+    position: relative; /* 位置を相対的に設定 */
+    bottom: 0; /* 下部に配置 */
+    width: 100%; /* 幅を100%に設定 */
+}
+/* スマートフォン用のスタイル */
+@media (max-width: 600px) {
+    body {
+        background-size: cover; /* スマホでも画像を画面全体にフィットさせる */
+        background-position: center -100px; /* 上から100px切り取る（-100pxで上に移動） */
+    }
+
+    .intro {
+        padding: 10px; /* スマホ用にパディングを調整 */
+    }
+}
