@@ -29,7 +29,7 @@ function extractCityName(addr) {
 }
 
 function fetchEarthquakeData() {
-    $.getJSON("https://api.p2pquake.net/v2/history?codes=551&limit=1", function(data) {
+    $.getJSON("https://api.p2pquake.net/v2/history?codes=551&limit=1&", function(data) {
         try {
             // データの存在確認
             if (!data || !data[0] || !data[0]['earthquake']) {

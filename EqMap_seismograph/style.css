@@ -1,0 +1,32 @@
+/* 基本的なリセット */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ページ全体のスタイル */
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+/* 地図コンテナのスタイル */
+#map {
+    height: 100vh;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* マーカーのポップアップスタイル */
+.leaflet-popup-content {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* マーカーのホバー効果 */
+.leaflet-marker-icon:hover {
+    filter: brightness(1.2);
+}

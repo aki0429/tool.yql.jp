@@ -12,6 +12,8 @@ const intensityInfo = document.getElementById('intensity-info');
 const endAlert = document.getElementById('end-alert');
 const alertSound = document.getElementById('alert-sound');
 
+let stations = {};
+
 console.log("地震情報を取得中...");
 
 // WebSocket接続を確立する関数
@@ -19,7 +21,7 @@ function connectWebSocket() {
     if (isConnecting) return;
     isConnecting = true;
 
-    ws = new WebSocket('wss://api.p2pquake.net/v2/ws');
+    ws = new WebSocket('wss://api-realtime-sandbox.p2pquake.net/v2/ws');
 
     ws.onopen = () => {
         console.log('WebSocket接続が確立されました');
@@ -82,10 +84,11 @@ function formatIntensityInfo(points) {
     // Group areas by intensity and remove duplicates
     points.forEach(point => {
         const intensity = convertIntensity(point.scale);
+        const city = stations[point.addr] || point.addr; // 市町村名に変換
         if (!intensityGroups[intensity]) {
-            intensityGroups[intensity] = new Set();
+            intensityGroups[intensity] = [];
         }
-        intensityGroups[intensity].add(point.addr);
+        intensityGroups[intensity].push(city);
     });
     
     // Sort intensities in descending order
@@ -93,13 +96,25 @@ function formatIntensityInfo(points) {
     
     // Format each intensity group
     intensityOrder.forEach(intensity => {
-        if (intensityGroups[intensity] && intensityGroups[intensity].size > 0) {
-            const areas = Array.from(intensityGroups[intensity]).sort().join('　');
-            intensityText += `　　<span class="intensity-label">震度${intensity}</span>\n　　　　${areas}\n`;
+        if (intensityGroups[intensity] && intensityGroups[intensity].length > 0) {
+            const areas = intensityGroups[intensity];
+            let line = `　　<span class="intensity-label">震度${intensity}</span>　`;
+            let currentLineLength = line.length;
+            areas.forEach(city => {
+                if (currentLineLength + city.length + 1 > 65) {
+                    intensityText += `${line.trim()}\n`;
+                    line = `　　　　${city}　`;
+                    currentLineLength = line.length;
+                } else {
+                    line += `${city}　`;
+                    currentLineLength += city.length + 1;
+                }
+            });
+            intensityText += `${line.trim()}\n`;
         }
     });
     
-    return intensityText.trim();
+    return intensityText.trim().split('\n');
 }
 
 // 地震情報を表示する関数
@@ -113,33 +128,27 @@ async function showEarthquakeInfo(data) {
         await sleep(3000);
         mainAlert.classList.add('hidden');
 
-        // 2. 震源地・マグニチュード・深さを表示（8秒間）
-        const eq = data.earthquake;
-        const magnitude = eq.hypocenter.magnitude !== -1 ? eq.hypocenter.magnitude.toFixed(1) : 'ー.ー';
-        const depth = eq.hypocenter.depth !== -1 ? `${eq.hypocenter.depth}` : '不明';
-        const tsunami = eq.domesticTsunami === "None" ? "この地震による津波の心配はありません" :
-                       eq.domesticTsunami === "Unknown" ? "津波の有無は不明です" :
-                       eq.domesticTsunami === "Checking" ? "津波の有無を調査中です" :
-                       eq.domesticTsunami === "NonEffective" ? "若干の海面変動が予想されますが、被害の心配はありません" :
-                       eq.domesticTsunami === "Watch" ? "津波注意報が発表されています" :
-                       eq.domesticTsunami === "Warning" ? "津波警報が発表されています" : "不明";
-
-        eqDetails.textContent = `震源地：${eq.hypocenter.name}　　マグニチュード：${magnitude}M\n震源の深さ：${depth} km　　${tsunami}`;
-        eqDetails.classList.remove('hidden');
-        await sleep(8000);
-        eqDetails.classList.add('hidden');
-
-        // 3. 各地の震度情報を表示（8秒間）
-        const intensityText = formatIntensityInfo(data.points);
-        intensityInfo.innerHTML = intensityText;
-        intensityInfo.style.textAlign = 'left';
-        intensityInfo.style.margin = '0 auto';
-        intensityInfo.style.width = 'fit-content';
-        intensityInfo.classList.remove('hidden');
-        await sleep(8000);
-        intensityInfo.classList.add('hidden');
-
-        // 4. 終了表示（3秒間）
+        // 2. 各地の震度情報を表示（8秒間）
+        const intensityInfoText = formatIntensityInfo(data.points);
+        
+        // 震度データがない場合はスキップ
+        if (intensityInfoText.length === 0) {
+            return; // 何も表示しない
+        }
+        
+        let index = 0;
+        while (index < intensityInfoText.length) {
+            const linesToShow = intensityInfoText.slice(index, index + 2).join('<br>'); // 2行分の震度情報を結合
+            intensityInfo.innerHTML = linesToShow; // 結合した震度情報を表示
+            intensityInfo.style.textAlign = 'left';
+            intensityInfo.style.margin = '0 auto';
+            intensityInfo.style.width = 'fit-content';
+            intensityInfo.classList.remove('hidden');
+            await sleep(5000);
+            intensityInfo.classList.add('hidden');
+            index += 2; // 次の震度情報に進む
+        }
+        // 3. 終了表示（3秒間）
         endAlert.classList.remove('hidden');
         await sleep(3000);
         endAlert.classList.add('hidden');
@@ -155,10 +164,18 @@ function sleep(ms) {
 
 function playSound() {
     const audio = new Audio('nc284095_ピーン・起動音、スタート、アイキャッチ_pibell.wav');
-    audio.play().catch(error => console.error('音声の再生に失敗しました:', error));
+    document.addEventListener('click', () => {
+        audio.play().catch(error => console.error('音声の再生に失敗しました:', error));
+    }, { once: true });
 }
 
 // ページ読み込み時にWebSocket接続を開始
 window.addEventListener('load', () => {
-    connectWebSocket();
+    // 非同期関数を定義して実行
+    (async () => {
+        // 市町村データの読み込み
+        stations = await fetch('stations.json').then(response => response.json());
+        
+        connectWebSocket();
+    })();
 });
