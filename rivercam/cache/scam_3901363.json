@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[133.584722222,33.760833333]},"properties":{"id":222552002,"name":"吉野川水系吉野川　長岡郡本山町本山　嶺北中央病院","name_kana":"","ofc_cd":88,"sys_id":2,"sys_cam_id":"22552002","pause":0,"date_type":0,"cam_kind":2,"own_cd":22552}}]}

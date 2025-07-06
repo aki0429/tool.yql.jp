@@ -11,13 +11,11 @@ var map = L.map('map', {
 map.createPane("pane_map").style.zIndex = 1;
 
 // ベースマップの定義
-// ベースマップの定義
 var baseMap = {
-    // 国土地理院マップ
     "地理院地図 標準": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
         attribution: '国土地理院',
         pane: "pane_map"
-    }).addTo(map), // デフォルト地図
+    }),
     "地理院地図 淡色": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
         attribution: '国土地理院',
         pane: "pane_map"
@@ -26,13 +24,7 @@ var baseMap = {
         attribution: '国土地理院',
         pane: "pane_map"
     }),
-    
-    // Googleマップ
     "Google 標準地図": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        attribution: 'Google Maps',
-        pane: "pane_map"
-    }),
-    "Google 道路地図": L.tileLayer('https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}', {
         attribution: 'Google Maps',
         pane: "pane_map"
     }),
@@ -40,40 +32,12 @@ var baseMap = {
         attribution: 'Google Maps',
         pane: "pane_map"
     }),
-    "Google 地形図": L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-        attribution: 'Google Maps',
-        pane: "pane_map"
-    }),
-    
-    // OpenStreetMap
     "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         pane: "pane_map"
     }),
-    "OpenStreetMap HOT": L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        pane: "pane_map"
-    }),
-    
-    // 気象庁
-    "気象庁": L.tileLayer('https://www.data.jma.go.jp/svd/eqdb/data/shindo/map/{z}/{x}/{y}.png', {
-        attribution: '気象庁',
-        pane: "pane_map"
-    }),
-    
-    // ESRI
-    "ESRI World Street": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri',
-        pane: "pane_map"
-    }),
     "ESRI World Imagery": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Esri',
-        pane: "pane_map"
-    }),
-    
-    // MIERUNE
-    "MIERUNE Streets": L.tileLayer('https://tile.mierune.co.jp/mierune/{z}/{x}/{y}.png', {
-        attribution: 'MIERUNE',
         pane: "pane_map"
     }),
     "MIERUNE Dark": L.tileLayer('https://tile.mierune.co.jp/mierune_mono/{z}/{x}/{y}@2x.png', {
@@ -82,155 +46,135 @@ var baseMap = {
     })
 };
 
-// デフォルトレイヤーを追加
+// デフォルトのベースマップをマップに追加
 baseMap["地理院地図 標準"].addTo(map);
 
-// レイヤーコントロールを追加
-L.control.layers(baseMap, null, {
+// レイヤーコントロールを作成し、必ず変数に格納します
+var layerControl = L.control.layers(baseMap, null, {
     position: 'topright',
     collapsed: false
 }).addTo(map);
 
+// ズームコントロールの位置を調整
 try {
-    // ズームコントロールの位置を調整
     map.zoomControl.setPosition('topright');
 } catch (error) {
     console.error('ズームコントロールの設定エラー:', error);
 }
-// 機関ごとの色を定義
-const affiColors = {
-    '気象庁': '#ff0000',
-    '防災科学技術研究所': '#0000ff',
-    '地方公共団体': '#00ff00'
-};
 
-// データ読み込みとマーカー表示
-fetch('stations.json')
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.json();
-    })
-    .then(stations => {
-        stations.forEach(station => {
-            const color = affiColors[station.affi] || '#999999';
-            L.circleMarker([station.lat, station.lon], {
-                radius: 6,
-                fillColor: color,
-                color: '#000',
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.8
-            })
-            .bindPopup(`<b>${station.name}</b><br>機関: ${station.affi}`)
-            .addTo(map);
-        });
-    })
-    .catch(error => console.error('データの読み込みエラー:', error));
+// --- データ表示ロジック ---
+
+// 各種定義
+const affiColors = { '気象庁': '#ff0000', '防災科学技術研究所': '#0000ff', '地方公共団体': '#00ff00', 'SNET': '#26bdf2', 'DONET': '#624de1', 'SAGAMI': '#32cd32', 'NNET1': '#f1c232', 'LANDPORT': '#dea683' };
+const cableColors = { 'RT_SNET': '#000000', 'RT_DONET': '#000000', 'RT_SAGAMI': '#000000', 'RT_NNET1': '#000000' };
+const dataSources = [ { url: 'stations.json', type: 'stations', label: '陸上地震計' }, { url: './data/st_snet.json', type: 'SNET', label: 'S-net観測点' }, { url: './data/st_donet.json', type: 'DONET', label: 'DONET観測点' }, { url: './data/st_sagami.json', type: 'SAGAMI', label: '相模湾観測点' }, { url: './data/st_nnet1.json', type: 'NNET1', label: 'N-net1観測点' }, { url: './data/landport.json', type: 'LANDPORT', label: '陸上局' }, { url: './data/rt_snet.json', type: 'RT_SNET', label: 'S-netケーブル' }, { url: './data/rt_donet.json', type: 'RT_DONET', label: 'DONETケーブル' }, { url: './data/rt_sagami.json', type: 'RT_SAGAMI', label: '相模湾ケーブル' }, { url: './data/rt_nnet1.json', type: 'RT_NNET1', label: 'N-net1ケーブル' } ];
+
+/**
+ * ★★★ さらに改良されたデータ抽出関数 ★★★
+ * テキストの中から最初の [...] または {...} のデータブロックを正確に抜き出します。
+ * @param {string} text - ファイルから読み込んだ生のテキスト
+ * @returns {object} - 読み取ったデータオブジェクト
+ */
+function extractDataFromJs(text) {
+    try {
+        // 純粋なJSONなら、ここで成功する
+        return JSON.parse(text);
+    } catch (e) {
+        // JS変数や他のコードが含まれる場合
+        const startIndex = text.search(/[\{\[]/);
+        if (startIndex === -1) {
+            throw new Error("データ開始文字 '{' または '[' が見つかりません。");
+        }
+
+        const openChar = text[startIndex];
+        const closeChar = (openChar === '{') ? '}' : ']';
+        
+        let depth = 1;
+        let endIndex = -1;
+
+        // 開始文字の次からループして、対応する閉じ括弧を探す
+        for (let i = startIndex + 1; i < text.length; i++) {
+            const char = text[i];
+            if (char === openChar) {
+                depth++;
+            } else if (char === closeChar) {
+                depth--;
+            }
+
+            if (depth === 0) {
+                endIndex = i;
+                break; // 対応する閉じ括弧が見つかったのでループ終了
+            }
+        }
+        
+        if (endIndex === -1) {
+            throw new Error(`対応する閉じ文字 '${closeChar}' が見つかりません。`);
+        }
+
+        const dataString = text.substring(startIndex, endIndex + 1);
+        return JSON.parse(dataString);
+    }
+}
 
 
-// マーカータイプと色の定義
-const seaFloorColors = {
-    // 観測点（暖色系）
-    'SNET': '#26bdf2',     // 赤橙
-    'DONET': '#624de1',    // サーモンピンク
-    'SAGAMI': '#32cd32',   // オレンジ
-    'NNET1': '#f1c232',    // ライトピンク
-    
-    // ケーブル（寒色系）
-    'RT_SNET': '#000000',  // シアン
-    'RT_DONET': '#000000', // 青
-    'RT_SAGAMI': '#000000',// ミディアムスレートブルー
-    'RT_NNET1': '#000000', // ロイヤルブルー
-    
-    // 陸上局（無彩色）
-    'LANDPORT': '#dea683'   // ダークグレー
-};
-
-const seaFloorDataSources = [
-    { url: './data/st_snet.json', type: 'SNET', label: 'S-net観測点' },
-    { url: './data/st_donet.json', type: 'DONET', label: 'DONET観測点' },
-    { url: './data/st_sagami.json', type: 'SAGAMI', label: '相模湾観測点' },
-    { url: './data/st_nnet1.json', type: 'NNET1', label: 'N-net1観測点' },
-    { url: './data/rt_snet.json', type: 'RT_SNET', label: 'S-netケーブル' },
-    { url: './data/rt_donet.json', type: 'RT_DONET', label: 'DONETケーブル' },
-    { url: './data/rt_sagami.json', type: 'RT_SAGAMI', label: '相模湾ケーブル' },
-    { url: './data/rt_nnet1.json', type: 'RT_NNET1', label: 'N-net1ケーブル' },
-    { url: './data/landport.json', type: 'LANDPORT', label: '陸上局' }
-];
-
-async function fetchSeaFloorData() {
-    const markerGroup = L.layerGroup();
-    
-    for (const source of seaFloorDataSources) {
+// データを非同期で読み込み、レイヤーを作成する関数
+async function createLayersFromData() {
+    for (const source of dataSources) {
         try {
             const response = await fetch(source.url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const rawData = await response.text();
-            
-            const jsonMatch = rawData.match(/^var\s+\w+\s*=\s*(\[[\s\S]*\]);?$/);
-            const data = JSON.parse(jsonMatch ? jsonMatch[1] : rawData);
 
+            // 改良された抽出関数でデータを安全に取得
+            const data = extractDataFromJs(rawData);
+
+            let layer;
+
+            // GeoJSONデータ（ケーブルなど）
             if (Array.isArray(data) && data[0]?.type === "FeatureCollection") {
-                data[0].features.forEach(feature => {
-                    const props = feature.properties;
-                    const coords = feature.geometry.coordinates;
-                    
-                    if (coords && coords.length >= 2) {
-                        const circle = L.circleMarker([coords[1], coords[0]], {
-                            radius: 6,
-                            fillColor: seaFloorColors[source.type],
-                            color: '#000',
-                            weight: 1,
-                            opacity: 0.8,
-                            fillOpacity: 0.6  // 透明度を上げて重なりを見やすく
-                        });
-
-                        circle.bindPopup(`
-                            <strong>${props.name || props.id || '観測点'}</strong><br>
-                            タイプ: ${source.label}<br>
-                            緯度: ${coords[1]}<br>
-                            経度: ${coords[0]}
-                            ${props.depth ? '<br>深度: ' + props.depth + 'm' : ''}
-                        `);
-
-                        markerGroup.addLayer(circle);
+                layer = L.geoJSON(data, {
+                    style: (feature) => ({
+                        color: cableColors[source.type] || '#000000',
+                        weight: 3,
+                        opacity: 0.7
+                    }),
+                    onEachFeature: (feature, layer) => {
+                        layer.bindPopup(`<b>${feature.properties.node || source.label}</b>`);
                     }
                 });
-            } else {
+            }
+            // 観測点データ
+            else {
+                const markers = L.layerGroup();
                 data.forEach(station => {
                     if (station.lat && station.lon) {
-                        const circle = L.circleMarker([station.lat, station.lon], {
+                        const color = affiColors[station.affi || source.type] || '#999999';
+                        const marker = L.circleMarker([station.lat, station.lon], {
                             radius: 6,
-                            fillColor: seaFloorColors[source.type],
+                            fillColor: color,
                             color: '#000',
                             weight: 1,
                             opacity: 1,
                             fillOpacity: 0.8
                         });
-
-                        circle.bindPopup(`
-                            <strong>${station.name || '観測点'}</strong><br>
-                            タイプ: ${source.label}<br>
-                            緯度: ${station.lat}<br>
-                            経度: ${station.lon}
-                        `);
-
-                        markerGroup.addLayer(circle);
+                        marker.bindPopup(`<b>${station.name}</b><br>機関: ${station.affi || source.type}`);
+                        markers.addLayer(marker);
                     }
                 });
+                layer = markers;
             }
+
+            // 作成したレイヤーを地図とコントロールに追加
+            if (layer) {
+                layerControl.addOverlay(layer, source.label);
+                layer.addTo(map);
+            }
+
         } catch (error) {
-            console.error(`${source.label}データの読み込みエラー:`, error);
+            console.error(`'${source.label}' の読み込みエラー:`, error);
         }
     }
-    
-    return markerGroup;
 }
 
-// データ読み込みと地図表示
-fetchSeaFloorData().then(markerGroup => {
-    markerGroup.addTo(map);
-    layerControl.addOverlay(markerGroup, '海底地震計');
-}).catch(error => {
-    console.error('データの読み込みエラー:', error);
-});
+// 実行
+createLayersFromData();

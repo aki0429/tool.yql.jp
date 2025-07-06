@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.1311722,35.3856166]},"properties":{"id":103585048,"name":"谷戸口橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"3585048","pause":0,"date_type":2,"cam_kind":4,"own_cd":3585}}]}

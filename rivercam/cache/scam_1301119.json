@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.718030556,35.754047222]},"properties":{"id":303329001,"name":"加賀橋","name_kana":"","ofc_cd":13,"sys_id":3,"sys_cam_id":"3329001","pause":0,"date_type":0,"cam_kind":2,"own_cd":3329}}]}

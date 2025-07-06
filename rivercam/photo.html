@@ -5,44 +5,48 @@
         <meta charset="UTF-8" lang="ja">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="description" content="河川カメラ for MiyakoCam・アッキー">
-        <!--自前のCSS読み込み-->
-        
-        <!--SNSでのサイト表示-->
         <meta property="twitter:card" content="summary">
         <meta property="twitter:site" content="@MiyakoCam">
         <meta property="twitter:description" content="河川カメラ for MiyakoCam・アッキー">
         <meta property="og:title" content="河川カメラ for MiyakoCam・アッキー">
         <meta property="og:image" content="og.png">
         <meta property="og:site_name" content="河川カメラ for MiyakoCam・アッキー">
-        <!--その他のCSS・ライブラリ読み込み-->
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ==" crossorigin="" />
-        <script src="leaflet-src.js"></script>
-        <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-        <link rel="stylesheet" href="fonts.css">
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-9SL593EYR6"></script>
-        <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+        <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js" integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ==" crossorigin=""></script>
+        
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+        <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+        <script src="leaflet_url.js"></script>
+        <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
         <script src="https://unpkg.com/@popperjs/core@2"></script>
         <script src="https://unpkg.com/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
-        <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/animations/perspective.css">
-        <link rel="stylesheet" href="https://unpkg.com/tippy.js@6.3.7/themes/material.css">
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZL8HPL24E7"></script>
-        <script src="leaflet_url.js"></script>
-        <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-
-        gtag('config', 'G-ZL8HPL24E7');
-        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+        
         <style>
+            body {
+                font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            }
+
+            .button, .mode_btn, .setsumei {
+                font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+                background: #000000aa;
+                border: white 2.5px solid;
+                border-radius: 5px;
+                color: white;
+                padding: 5px;
+                font-weight: 500;
+                font-size: 0.9rem;
+                cursor: pointer;
+                z-index: 10000;
+                user-select: none;
+            }
+
             #photoModal {
                 z-index: 10000000;
                 position: absolute;
@@ -97,20 +101,6 @@
                 right: 5px;
                 color: white;
             }
-
-            .button, .mode_btn, .setsumei {
-                background: #000000aa;
-                border: white 2.5px solid;
-                border-radius: 5px;
-                color: white;
-                padding: 5px;
-                font-family: "ヒラギノ角ゴ-Pro",'Noto Sans JP';
-                font-weight: 500;
-                font-size: 0.9rem;
-                cursor: pointer;
-                z-index: 10000;
-                user-select: none;
-            }
             .modal {
                 z-index: 100000;
                 width: 100%;
@@ -143,10 +133,6 @@
                 transform: translate(-50%,-50%);
                 text-align: center;
             }
-            /* #front_div_prefselect label, .modal_front label {
-                display: inline-block;
-                width: 10em;
-            } */
             #front_div_prefselect input[type=checkbox], .modal_front input[type=checkbox] {
                 margin-left: 2em;
             }
@@ -175,20 +161,9 @@
     <body>
         <div id="map" style="background: white"></div>
 
-
         <div class="btns">
-            <button id="prefselect" class="button">都道府県選択</button>
             <button id="slideshow_start_btn" class="button">ｽﾗｲﾄﾞｼｮｰ開始</button>
             <button id="slideshow_edit_btn" class="button">ｽﾗｲﾄﾞｼｮｰ編集</button>
-        </div>
-
-        <div id="div_prefselect" class="modal">
-            <div id="back_div_prefselect" class="modal_back"></div>
-            <div id="front_div_prefselect">
-                <div><span style="font-size: 1.4rem;">都道府県選択</span></div>
-
-                <div><span id="cancel_front_div_prefselect">キャンセル</span><span id="ok_front_div_prefselect">適用</span></div>
-            </div>
         </div>
 
         <div id="div_slideshow_edit" class="modal">
@@ -196,7 +171,6 @@
             <div class="modal_back"></div>
             <div id="front_div_slideshow_edit" class="modal_front">
                 <div><span style="font-size: 1.4rem;">スライドショー編集</span></div>
-                
             </div>
         </div>
         
@@ -213,236 +187,242 @@
 
     <link rel="stylesheet" href="amedas.css">
     <script>
-var map = L.map('map', {
-    zoomSnap: 0,
-    center: [37.575, 137.984],
-    zoom: 5.6,
-    minZoom: 4,
-    preferCanvas:false,
-});
+// 変数のグローバルスコープ定義
+let map;
+let markers;
+let updateTimer = null;
+let pointLatLngList = {};
+let slideshowList = localStorage.getItem('slideshowList') ? 
+    JSON.parse(localStorage.getItem('slideshowList')) : {};
 
-let url = L.urlHandler(map); // リンク書換機能の追加
-if (typeof url._zoom != 'undefined') { // 位置情報付URL
-	map.setView([url._lat, url._lng], url._zoom);
-}
-//L.control.scale({maxWidth:150,position:'bottomright',imperial:false}).addTo(map);  // スケールを表示
-map.zoomControl.setPosition('topright');
+// 定数定義を追加
+const BASE_URL = location.hostname === 'localhost' || location.hostname === '127.0.0.1' 
+    ? '' 
+    : 'https://tool.yql.jp/rivercam';
 
-map.attributionControl.addAttribution("国土交通省");
-map.attributionControl.addAttribution("L.urlHandler");
+// 地図初期化関数
+function initMap() {
+    if (map) return; 
 
-map.createPane("pane_map").style.zIndex = 1;
-map.createPane("nowcast").style.zIndex = 10;
-map.createPane("pane_map_2").style.zIndex = 50;
-map.createPane("liden").style.zIndex = 60;
-map.createPane("important").style.zIndex = 70;
-map.createPane("mlit").style.zIndex = 99;
-map.createPane("amedas").style.zIndex = 100;
-
-var baseMap = {
-    "Google 標準地図": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {pane: "pane_map",}).addTo(map),
-    "Google 道路地図": L.tileLayer('https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}', {pane: "pane_map",}),
-    "Google 衛星写真": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {pane: "pane_map",}),
-    "Google 衛星+地図": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {pane: "pane_map",}),
-    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "OpenStreetMap HOT": L.tileLayer('http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "気象庁 地図": L.tileLayer('https://www.data.jma.go.jp/svd/eqdb/data/shindo/map/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "国土地理院 標準地図": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "国土地理院 白地図": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "国土地理院 単色地図": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "Esri World Topo Map": L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {pane: "pane_map",}),
-    "MIERUNE": L.tileLayer('https://tile.mierune.co.jp/mierune/{z}/{x}/{y}@2x.png', {pane: "pane_map",}),
-    "MIERUNE mono": L.tileLayer('https://tile.mierune.co.jp/mierune_mono/{z}/{x}/{y}@2x.png', {pane: "pane_map",}),
-    "Stamen_Terrain": L.tileLayer('http://a.tile.stamen.com/terrain/{z}/{x}/{y}.png', {pane: "pane_map",}),
-    "Stamen_Watercolor": L.tileLayer('http://tile.stamen.com/watercolor/{z}/{x}/{y}.jpg', {pane: "pane_map",})
-};
-
-L.control.layers(baseMap).addTo(map);
-
-var markers = L.layerGroup();
-
-
-
-//旧json取得 都道府県選択なしのため負荷甚大による無効状態
-//var cityList = [
-//大阪27
-//2701200,2701205,2701204,2701203,2701100,2701202,2701208,2701206,2701207,2701209,2701210,2701211,2701212,2701213,2701214,2701215,2701216,2701217,2701218,2701219,2701228,2701232,2701301,2701321,2701322,2701361,2701366,
-//兵庫28
-//2801100,2801201,2801202,2801203,2801204,2801205,2801206,2801207,2801208,2801209,2801210,2801211,2801212,2801213,2801214,2801215,2801216,2801217,2801218,2801219,2801220,2801221,2801222,2801223,2801224,2801225,2801226,2801227,2801229,2801301,2801321,2801322,2801228,2801585,2801586,
-//滋賀25
-//2501201,2501202,2501203,2501205,2501207,2501209,2501211,2501214,2501214,2501321,2501213,2501210,2501322,2501301,2501211,2501212,2501206,2501208,2501212,2501322,2501204,2501301,2501213,2501321,2501210,
-//京都26
-//2601100,2601201,2601202,2601204,2601205,2601206,2601208,2601210,2601211,2601212,2601213,2601364,2601365,2601366,2601207,2601344,2601211,2601212,2601100,2601213,2601202,2601201,2601210,2601205,2601204,2601365,2601364,2601208,2601207,2601206,2601366,2601367,2601303,2601362,2601344,2601209,2601203,2601322,2601209,2601303,2601203,2601362,2601367,2601322,
-//奈良29
-//2901201,2901202,2901203,2901204,2901205,2901206,2901207,2901208,2901209,2901210,2901212,2901343,2901344,2901345,2901424,2901425,2901426.2901427,2901442,2901203,2901205,2901208,2901207,2901206,2901211,2901210,2901209,2901301,2901204,2901214,2901215,2901212,2901216,2901217,2901218,2901219,2901202,
-//和歌山30
-//3001201,3001203,3001207,3001208,3001209,3001341,3001343,
-//三重24
-//2401201,2401202,2401203,2401204,2401205,2401207,2401208,2401209,2401210,2401214,2401214,2401215,2401216,2401324,2401341,2401343,2401344,2401441,2401442,2401461,2401470,2401471,2401543,2401562,2401212,
-//愛知23
-//2301100,2301201,2301202,2301203,2301205,2301206,2301207,2301209,2301211,2301213,2301213,2301215,2301216,2301217,2301220,2301221,2301223,2301225,2301228,2301232,2301235,2301362,2301441,2301562,2301563,
-//岐阜県21
-//2101201,2101202,2101203,2101204,2101205,2101206,2101207,2101208,2101209,2101210,2101211,2101212,2101213,2101214,2101215,2101216,2101217,2101218,2101219,2101220,2101221,2101303,2101341,2101361,2101381,2101382,2101383,2101401,2101403,2101404,2101421,2101501,2101503,2101504,2101505,2101521,2101604,
-//];
-
-//現行json取得　都道府県選択画面付き
-var prefCityList = {
-    "27": {"prefName": "大阪府", "cityList": [2701200,2701205,2701204,2701203,2701100,2701202,2701208,2701206,2701207,2701209,2701210,2701211,2701212,2701213,2701214,2701215,2701216,2701217,2701218,2701219,2701228,2701232,2701301,2701321,2701322,2701361,2701366]},
-    "28": {"prefName": "兵庫県", "cityList": [2801100,2801201,2801202,2801203,2801204,2801205,2801206,2801207,2801208,2801209,2801210,2801211,2801212,2801213,2801214,2801215,2801216,2801217,2801218,2801219,2801220,2801221,2801222,2801223,2801224,2801225,2801226,2801227,2801229,2801301,2801321,2801322,2801228,2801585,2801586]},
-    "25": {"prefName": "滋賀県", "cityList": [2501201,2501202,2501203,2501205,2501207,2501209,2501211,2501214,2501214,2501321,2501213,2501210,2501322,2501301,2501211,2501212,2501206,2501208,2501212,2501322,2501204,2501301,2501213,2501321,2501210]},
-    "26": {"prefName": "京都府", "cityList": [2601100,2601201,2601202,2601204,2601205,2601206,2601208,2601210,2601211,2601212,2601213,2601364,2601365,2601366,2601207,2601344,2601211,2601212,2601100,2601213,2601202,2601201,2601210,2601205,2601204,2601365,2601364,2601208,2601207,2601206,2601366,2601367,2601303,2601362,2601344,2601209,2601203,2601322,2601209,2601303,2601203,2601362,2601367,2601322]},
-    "29": {"prefName": "奈良県", "cityList": [2901201,2901202,2901203,2901204,2901205,2901206,2901207,2901208,2901209,2901210,2901212,2901343,2901344,2901345,2901424,2901425,2901426.2901427,2901442,2901203,2901205,2901208,2901207,2901206,2901211,2901210,2901209,2901301,2901204,2901214,2901215,2901212,2901216,2901217,2901218,2901219,2901202,2901322,2901343,2901344,2901345,2901361,2901362,2901363,2901385,2901386,2901402,2901424,2901425,2901426,2901427,2901441,2901442,2901443,2901446,2901449,2901451,2901452,2901453]},
-    "30": {"prefName": "和歌山県", "cityList": [3001201,3001203,3001207,3001208,3001209,3001341,3001343]},
-    "24": {"prefName": "三重県", "cityList": [2401201,2401202,2401203,2401204,2401205,2401207,2401208,2401209,2401210,2401214,2401214,2401215,2401216,2401324,2401341,2401343,2401344,2401441,2401442,2401461,2401470,2401471,2401543,2401562,2401212]},
-    "23": {"prefName": "愛知県", "cityList": [2301100,2301201,2301202,2301203,2301205,2301206,2301207,2301209,2301211,2301213,2301213,2301215,2301216,2301217,2301220,2301221,2301223,2301225,2301228,2301232,2301235,2301362,2301441,2301562,2301563]},
-    "22": {"prefName": "岐阜県", "cityList": [2101201,2101202,2101203,2101204,2101205,2101206,2101207,2101208,2101209,2101210,2101211,2101212,2101213,2101214,2101215,2101216,2101217,2101218,2101219,2101220,2101221,2101303,2101341,2101361,2101381,2101382,2101383,2101401,2101403,2101404,2101421,2101501,2101503,2101504,2101505,2101521,2101604]},
-    "39": {"prefName": "高知県", "cityList": [3901201,3901202,3901203,3901204,3901205,3901206,3901209,3901210,3901211,3901212,3901302,3901303,3901304,3901307,3901341,3901363,3901386,3901402,3901403,3901405,3901410,3901411,3901412,3901424,3901427,3901428,]},
-    "38": {"prefName": "愛媛県", "cityList": [3801201,3801202,3801203,3801204,3801205,3801206,3801207,3801210,3801213,3801214,3801215,3801386,3801401,3801402,3801422,3801488,3801506]},
-    "37": {"prefName": "香川県", "cityList": [3701201,3701202,3701203,3701204,3701205,3701206,3701207,3701208,3701341,3701387,3701404,3701406]},
-    "36": {"prefName": "徳島県", "cityList": []},
-    "": {"prefName": "県", "cityList": []},
-    "": {"prefName": "県", "cityList": []},
-    "": {"prefName": "県", "cityList": []},
-    "": {"prefName": "県", "cityList": []},
-    "": {"prefName": "県", "cityList": []},
-
-}
-var prefCheckList = [];
-var slideshowList;
-if (localStorage.getItem('slideshowList') != undefined) {
-    slideshowList = JSON.parse(localStorage.getItem('slideshowList'));
-} else {
-    slideshowList = {};
-}
-var pointLatLngList = {};
-
-var prefselect = document.getElementById('prefselect');
-var front_div_prefselect = document.getElementById('front_div_prefselect');
-front_div_prefselect.innerHTML = '<div><span style="font-size: 1.4rem;">都道府県選択</span></div>';
-Object.keys(prefCityList).forEach(element => {
-    var text = '['+element+'] '+prefCityList[element]["prefName"];
-    var htmlOB = '<label><input type="checkbox" name="prefselectcheckbox" value="'+element+'">'+text+'</label>';
-    front_div_prefselect.innerHTML += htmlOB;
-});
-front_div_prefselect.innerHTML += '<div><span id="cancel_front_div_prefselect">キャンセル</span><span id="ok_front_div_prefselect">適用</span></div>';
-
-document.getElementById('ok_front_div_prefselect').addEventListener("click",()=>{
-    prefCheckList = [];
-    $('input[name=prefselectcheckbox]:checked').each(function() {
-        var v = $(this).val();
-        prefCheckList.push(v);
+    map = L.map('map', {
+        zoomSnap: 0,
+        center: [37.575, 137.984],
+        zoom: 5.6,
+        minZoom: 4,
+        preferCanvas: false,
     });
-    $('#div_prefselect').removeClass('display');
-    drawMap(prefCheckList);
-});
-$('#cancel_front_div_prefselect').click(e => {
-    $('#div_prefselect').removeClass('display');
-});
-$('#prefselect').click(e => {
-    $('#div_prefselect').addClass('display');
-});
 
-function drawMap(prefCode) {
-    if (prefCode == undefined || prefCode == "undefined") {
-    } else {
-        map.removeLayer(markers);
-        markers = L.layerGroup();
-
-        pointLatLngList = {};
-
-        prefCode.forEach(PC => {
-            prefCityList[PC]["cityList"].forEach(uRl => {
-                $.getJSON("normal.php?url="+uRl, function(data) {
-                    data["features"].forEach(element => {
-                        var latlon = new L.LatLng(element["geometry"]["coordinates"][1], element["geometry"]["coordinates"][0]);
-                        var name = element["properties"]["name"];
-                        var id = element["properties"]["id"];
-                        pointLatLngList[id] = {};
-                        pointLatLngList[id]["name"] = name;
-                        pointLatLngList[id]["lat"] = element["geometry"]["coordinates"][1];
-                        pointLatLngList[id]["lng"] = element["geometry"]["coordinates"][0];
-                        $.getJSON("camera.php?url="+id, function(data) {
-                            var imageSrc = data["obsInfo"]["currProvUrl"];
-                            var kariMarker = L.marker(latlon, {}).bindTooltip(name);
-                            kariMarker.imageURL = imageSrc;
-                            kariMarker.camName = name;
-                            kariMarker.camID = id;
-                            kariMarker.on('click', function(e) { viewPhoto(e)});
-                            markers.addLayer(kariMarker);
-                            //image.onload = function(){
-                            //    var imageWidth = image.width;
-                            //    var imageHeight = image.height;
-                                // let ICON = L.icon({
-                                //     iconUrl: data["obsInfo"]["currProvUrl"],
-                                //     iconAnchor: [40, imageAsp/2],
-                                //     tooltipAnchor: [40, 0],
-                                //     iconSize: [80, imageAsp]
-                                // });
-                                //震源のマーカー
-                                
-                            //};
-                            
-                        });
-                    });
-                });
-            });
-        });
-        
-        map.addLayer(markers);
-    }
-}
-
-function viewPhoto(e) {
-    var imageSrc = e.target.imageURL;
-    var name = e.target.camName;
-    var camID = e.target.camID;
-    document.getElementById('photoModal_photo_name').innerText = name;
-    document.getElementById('photoModal_photo_img').src = imageSrc;
-    var addChecked;
-    if (slideshowList[camID]) {addChecked = "checked";} else {addChecked = "";}
-    document.getElementById('slideshow_select_label').innerHTML = '<input type="checkbox" id="slideshow_select_checkbox" onchange="slideshow_checkbox(this)" data-camid="'+camID+'" data-camname="'+name+'" '+addChecked+'>ｽﾗｲﾄﾞｼｮｰ保存';
-    document.getElementById('photoModal').classList.add('display');
-}
-
-document.getElementById('close_photoModal').addEventListener("click",()=>{
-    document.getElementById('photoModal').classList.remove('display');
-});
-
-function slideshow_checkbox(e) {
-    var camID = e.dataset.camid;
-    if (e.checked) {
-        slideshowList[camID] = {};
-        slideshowList[camID]["name"] = pointLatLngList[camID]["name"];
-        slideshowList[camID]["lat"] = pointLatLngList[camID]["lat"];
-        slideshowList[camID]["lng"] = pointLatLngList[camID]["lng"];
-    } else {
-        if (slideshowList[camID]) {
-            delete slideshowList[camID];
+    if (typeof L.urlHandler === 'function') {
+        let url = L.urlHandler(map);
+        if (url && typeof url._zoom !== 'undefined') {
+            map.setView([url._lat, url._lng], url._zoom);
         }
     }
-    localStorage.setItem('slideshowList', JSON.stringify(slideshowList));
-    if (document.getElementById('div_slideshow_edit').classList.contains('display')) {
-        document.getElementById('slideshow_edit_btn').click();
-    }
-}
-var front_div_slideshow_edit = document.getElementById('front_div_slideshow_edit');
-document.getElementById('slideshow_edit_btn').addEventListener("click",()=>{
-    front_div_slideshow_edit.innerHTML = '<div><span style="font-size: 1.4rem;">スライドショーリスト編集</span></div>';
-    front_div_slideshow_edit.innerHTML += '<div>「チェックボックス」クリックで観測点をリストから削除<br>「チェックボックス横の観測点名」クリックでその観測点へ地図遷移</div>';
-    Object.keys(slideshowList).forEach(element => {
-        var text = '['+element+'] '+slideshowList[element]["name"];
-        var htmlOB = '<input type="checkbox" name="slideshowselectcheckbox" id="slideshow_select_checkbox" onchange="slideshow_checkbox(this)" data-camid="'+element+'" checked><span onclick="slideshow_edit(\''+element+'\')">'+text+'</span>';
-        front_div_slideshow_edit.innerHTML += htmlOB;
+
+    map.zoomControl.setPosition('topright');
+    map.attributionControl.addAttribution("国土交通省");
+    map.attributionControl.addAttribution("L.urlHandler");
+
+    map.createPane("pane_map").style.zIndex = 1;
+
+    var baseMap = {
+        "Google 標準地図": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {pane: "pane_map",}).addTo(map),
+    };
+
+    L.control.layers(baseMap).addTo(map);
+    
+    markers = L.markerClusterGroup({
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 13, 
+        maxClusterRadius: function(zoom) {
+            if (zoom <= 6) {         // 日本全体レベル
+                return 120;
+            } else if (zoom <= 8) {  // 地方レベル
+                return 90;
+            } else if (zoom <= 10) { // 都道府県レベル
+                return 60;
+            } else {                 // 市町村レベル
+                return 30;
+            }
+        }
+    }).addTo(map);
+
+    map.on('moveend', function() {
+        if (updateTimer) clearTimeout(updateTimer);
     });
-    document.getElementById('div_slideshow_edit').classList.add('display');
-});
-document.getElementById('close_div_slideshow_edit').addEventListener("click",()=>{
-    document.getElementById('div_slideshow_edit').classList.remove('display');
-});
-function slideshow_edit(camID) {
-    document.getElementById('div_slideshow_edit').classList.remove('display');
-    var fly_point_lnglat = new L.LatLng(slideshowList[camID]["lat"], slideshowList[camID]["lng"]);
-    map.flyTo(fly_point_lnglat, 14, { duration: 0.5 });
+
+    loadAllCameraData();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        initMap();
+    } catch (error) {
+        console.error('地図の初期化に失敗しました:', error);
+    }
+}, { once: true });
+
+window.addEventListener('error', function(e) {
+    return true;
+}, true);
+
+class CameraCache {
+    constructor() {
+        this.store = localStorage;
+        this.prefix = 'riverCam_json_';
+        this.version = 1;
+        this.expiration = 28 * 24 * 60 * 60 * 1000; // 4週間
+    }
+    _key(id) { return `${this.prefix}${id}`; }
+    _isValid(data) {
+        return data && data.version === this.version && (new Date().getTime() - data.timestamp) < this.expiration;
+    }
+    set(id, value) {
+        const data = { version: this.version, timestamp: new Date().getTime(), value: value };
+        this.store.setItem(this._key(id), JSON.stringify(data));
+    }
+    get(id) {
+        try {
+            const data = JSON.parse(this.store.getItem(this._key(id)));
+            if (this._isValid(data)) return data.value;
+            this.remove(id);
+        } catch (e) { this.remove(id); }
+        return null;
+    }
+    remove(id) { this.store.removeItem(this._key(id)); }
+}
+
+const cameraCache = new CameraCache();
+
+async function loadAllCameraData() {
+    try {
+        let allCameras = [];
+        const listResponse = await fetch('json_files_list.json');
+        if (!listResponse.ok) throw new Error('ファイルリストの取得に失敗しました');
+        const fileList = await listResponse.json();
+        
+        for (const file of fileList.files) {
+            const cachedData = cameraCache.get(file);
+            if (cachedData) {
+                allCameras.push(...cachedData);
+                continue;
+            }
+            try {
+                const filePath = file === 'json_files_list.json' ? file : 'cache/' + file;
+                const response = await fetch(filePath);
+                if (!response.ok) throw new Error(`HTTP ${response.status} ${file}`);
+                const data = await response.json();
+                
+                if (data.features && Array.isArray(data.features)) {
+                    const cameras = data.features
+                        .filter(f => f.properties && f.properties.id && f.geometry && f.geometry.coordinates && f.geometry.coordinates.length === 2)
+                        .map(f => ({
+                            id: f.properties.id.toString(),
+                            name: f.properties.name || '',
+                            lat: f.geometry.coordinates[1],
+                            lng: f.geometry.coordinates[0]
+                        }));
+                    if (cameras.length > 0) {
+                        cameraCache.set(file, cameras);
+                        allCameras.push(...cameras);
+                    }
+                }
+            } catch (err) { console.warn(`ファイル ${file} の読み込みエラー:`, err); }
+        }
+        
+        if (allCameras.length > 0) {
+            console.log(`${allCameras.length}個のカメラデータを読み込みました`);
+            drawMap(allCameras);
+        } else { console.warn('有効なカメラデータが見つかりませんでした'); }
+    } catch (error) { console.error('データ読み込みエラー:', error); }
+}
+
+function drawMap(cameras) {
+    if (!markers) return;
+    markers.clearLayers();
+
+    const newMarkers = [];
+    
+    cameras.forEach(camera => {
+        pointLatLngList[camera.id] = { name: camera.name, lat: camera.lat, lng: camera.lng };
+        const latlon = new L.LatLng(camera.lat, camera.lng);
+        const kariMarker = L.marker(latlon).bindTooltip(camera.name);
+        
+        kariMarker.on('click', async function() {
+            try {
+                document.getElementById('photoModal_photo_name').innerText = camera.name;
+                document.getElementById('photoModal_photo_img').src = 'https://placehold.jp/640x480.png?text=Loading...';
+                 document.getElementById('photoModal').classList.add('display');
+
+                const response = await fetch(`proxy.php?cam_id=${camera.id}`);
+                
+                if (!response.ok) {
+                    throw new Error(`カメラ情報の取得に失敗 (HTTP ${response.status})`);
+                }
+                const camInfo = await response.json();
+                
+                // ▼▼▼ 階層構造を考慮した画像URLの取得ロジックに修正 ▼▼▼
+                let imageUrl = null;
+
+                // 1. まず obsInfo の中の currProvUrl を探す (今回ご提示いただいた形式)
+                if (camInfo.obsInfo && camInfo.obsInfo.currProvUrl) {
+                    imageUrl = camInfo.obsInfo.currProvUrl;
+                }
+                // 2. 次に第一階層の currProvUrl を探す (別の形式のカメラ用)
+                else if (camInfo.currProvUrl) {
+                    imageUrl = camInfo.currProvUrl;
+                }
+                // 3. それでも無ければ archiveList の最新画像を代替として使用
+                else if (camInfo.archiveList && camInfo.archiveList.length > 0 && camInfo.archiveList[0].arcUrl) {
+                    console.log(`カメラID: ${camera.id} - currProvUrlが見つかりません。アーカイブ画像で代替します。`);
+                    imageUrl = camInfo.archiveList[0].arcUrl;
+                }
+
+                // 表示できる画像URLが見つかった場合
+                if (imageUrl) {
+                    document.getElementById('photoModal_photo_img').src = imageUrl;
+                } else {
+                    // どのパターンにも一致しなかった場合
+                    console.error(`画像URLを特定できませんでした。受信データ:`, camInfo);
+                    throw new Error('現在利用可能な画像が見つかりません');
+                }
+                // ▲▲▲ 修正ここまで ▲▲▲
+
+                document.getElementById('slideshow_select_label').innerHTML = 
+                    `<input type="checkbox" id="slideshow_select_checkbox" onchange="slideshow_checkbox(this)" 
+                       data-camid="${camera.id}" data-camname="${camera.name}" 
+                       ${slideshowList[camera.id] ? "checked" : ""}>ｽﾗｲﾄﾞｼｮｰ保存`;
+
+                initModalClose();
+
+            } catch (error) {
+                console.error(`カメラ画像(${camera.id})の読み込みに失敗しました:`, error);
+                document.getElementById('photoModal_photo_img').src = 'https://placehold.jp/640x480.png?text=Error';
+            }
+        });
+        
+        newMarkers.push(kariMarker);
+    });
+
+    markers.addLayers(newMarkers);
+}
+
+function initModalClose() {
+    const modal = document.getElementById('photoModal');
+    const closeBtn = document.getElementById('close_photoModal');
+    const modalBack = document.getElementById('photoModal_back');
+
+    const closeModal = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        modal.classList.remove('display');
+    };
+
+    closeBtn.removeEventListener('click', closeModal);
+    closeBtn.addEventListener('click', closeModal);
+    modalBack.removeEventListener('click', closeModal);
+    modalBack.addEventListener('click', closeModal);
 }
     </script>
 </html>

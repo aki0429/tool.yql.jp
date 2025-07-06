@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>震度データ可視化サイト</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #1877f2;
+        }
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            background-color: #ffffff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        #status {
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .loading { color: #1877f2; background-color: #e7f3ff; }
+        .error { color: #fa383e; background-color: #feebe_b; }
+        .success { color: #00a400; background-color: #e9fbeb; }
+        canvas { max-width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>地震データ可視化ダッシュボード 地震</h1>
+        <p>同じディレクトリにある <code>quake.csv</code> を自動で読み込んでグラフ化します。</p>
+        
+        <div id="status"></div>
+        <canvas id="shindoChart"></canvas>
+    </div>
+
+    <script>
+        // --- 設定項目 (あなたのCSVに合わせて設定済み) ---
+        const CSV_FILE_PATH = 'quake.csv';
+        const DATE_COLUMN = '地震の発生日';
+        const TIME_COLUMN = '地震の発生時刻';
+        const SHINDO_COLUMN = '最大震度';
+        // ------------------------------------------------
+
+        const statusDiv = document.getElementById('status');
+        const ctx = document.getElementById('shindoChart').getContext('2d');
+        let chart;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchAndDrawChart();
+        });
+
+        async function fetchAndDrawChart() {
+            statusDiv.textContent = `'${CSV_FILE_PATH}' を読み込み中...`;
+            statusDiv.className = 'loading';
+
+            try {
+                const response = await fetch(CSV_FILE_PATH);
+                if (!response.ok) throw new Error(`ファイルが見つかりません (HTTPステータス: ${response.status})`);
+                const csvText = await response.text();
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const firstRow = results.data[0];
+                        if (!firstRow || !(DATE_COLUMN in firstRow) || !(TIME_COLUMN in firstRow) || !(SHINDO_COLUMN in firstRow)) {
+                           statusDiv.textContent = `エラー: CSVに必要な列 ('${DATE_COLUMN}', '${TIME_COLUMN}', '${SHINDO_COLUMN}') が見つかりません。`;
+                           statusDiv.className = 'error';
+                           return;
+                        }
+                        
+                        // データをグラフ用に整形
+                        const chartData = results.data.map(row => {
+                            // "震度1"のような文字列から数値の"1"を抽出
+                            const shindoString = row[SHINDO_COLUMN] || "";
+                            const match = shindoString.match(/[\d\.]+/);
+                            const shindoValue = match ? Number(match[0]) : null;
+
+                            const dateTimeString = `${row[DATE_COLUMN]} ${row[TIME_COLUMN]}`;
+                            
+                            return {
+                                x: new Date(dateTimeString), // X軸のデータ (時刻)
+                                y: shindoValue // Y軸のデータ (震度の数値)
+                            };
+                        }).filter(d => d.x.getTime() && d.y !== null); // 不正なデータを排除
+
+                        drawChart(chartData);
+                        statusDiv.textContent = `${chartData.length} 件の地震データをグラフに描画しました。`;
+                        statusDiv.className = 'success';
+                    }
+                });
+
+            } catch (error) {
+                statusDiv.textContent = `エラー: '${CSV_FILE_PATH}' の読み込みに失敗しました。ファイル配置とブラウザのコンソールを確認してください。`;
+                statusDiv.className = 'error';
+                console.error(error);
+            }
+        }
+
+        function drawChart(data) {
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: `最大震度`,
+                        data: data,
+                        borderColor: '#fa383e',
+                        backgroundColor: 'rgba(250, 56, 62, 0.2)',
+                        fill: true,
+                        pointBackgroundColor: '#fa383e',
+                        pointRadius: 4,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: '時間ごとの最大震度', font: { size: 18 } },
+                        tooltip: {
+                            callbacks: { label: context => `最大震度: ${context.raw.y}` }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                tooltipFormat: 'yyyy/MM/dd HH:mm:ss',
+                                displayFormats: { hour: 'MM/dd HH:mm', day: 'yyyy/MM/dd' }
+                            },
+                            title: { display: true, text: '時刻' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '最大震度' },
+                            ticks: { stepSize: 1 } // Y軸の目盛を1刻みに
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

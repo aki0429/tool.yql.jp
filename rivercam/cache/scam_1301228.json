@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.3233139,35.7278643]},"properties":{"id":121320174,"name":"多摩川右岸 50.2k","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"21320174","pause":0,"date_type":2,"cam_kind":4,"own_cd":21320}}]}

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 高解像度ナウキャスト on 衛星画像</title>
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { width: 100vw; height: 100vh; background-color: #333; }
+        #controls-wrapper {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: auto;
+        }
+        #timeline-controls, #main-controls {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        #timeline-container { position: relative; width: 400px; }
+        #timeSlider { width: 100%; margin: 0; }
+        #timeline-ticks-list { display: flex; justify-content: space-between; padding: 0 5px; box-sizing: border-box; width: 100%; pointer-events: none; }
+        #timeline-ticks-list option { width: 2px; height: 6px; background: #888; display: block; position: relative; border: none; }
+        #playPauseBtn { font-size: 16px; padding: 5px 10px; cursor: pointer; width: 80px; }
+        #speedSlider { width: 120px; }
+        #timeDisplay { font-size: 14px; font-weight: bold; min-width: 170px; text-align: center; }
+        #coordsDisplay { font-size: 14px; padding: 5px 10px; min-width: 230px; }
+
+        @media (max-width: 768px) {
+            #controls-wrapper { width: 95%; bottom: 10px; }
+            #timeline-controls, #main-controls { width: 100%; box-sizing: border-box; flex-wrap: wrap; justify-content: center; padding: 8px; gap: 8px; }
+            #timeline-container { width: 100%; }
+            #coordsDisplay { width: 100%; text-align: center; order: -1; margin-bottom: 5px; min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div id="controls-wrapper">
+        <div id="timeline-controls">
+            <div id="timeline-container">
+                <input type="range" id="timeSlider" value="0" list="timeline-ticks-list">
+                <datalist id="timeline-ticks-list"></datalist>
+            </div>
+        </div>
+        <div id="main-controls">
+            <div id="coordsDisplay">緯度: --.---- 経度: ---.----</div>
+            <button id="playPauseBtn">再生</button>
+            <input type="range" id="speedSlider" min="100" max="2000" value="500" step="100">
+            <div id="timeDisplay">--/-- --:--</div>
+        </div>
+    </div>
+
+<script>
+    // --- Global Variables ---
+    let map;
+    let nowcastFrames = []; // ★★★ レイヤーの「情報」だけを保持する配列に変更 ★★★
+    let currentFrameIndex = 0;
+    let isPlaying = false;
+    let animationInterval;
+    let animationStarted = false;
+    let hashUpdateScheduled = false;
+    let baseTime;
+
+    // --- UI Elements ---
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const speedSlider = document.getElementById('speedSlider');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const coordsDisplay = document.getElementById('coordsDisplay');
+    const ticksDatalist = document.getElementById('timeline-ticks-list');
+
+    // --- Initialization ---
+    initializeMap();
+    setupEventListeners();
+
+    // 1. Initialize Map
+    function initializeMap() {
+        let view = { center: [137.3401, 34.6468], zoom: 6, pitch: 0, bearing: 0 };
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const parts = hash.split('/');
+            if (parts.length === 5) {
+                view.zoom = parseFloat(parts[0]);
+                view.center = [parseFloat(parts[2]), parseFloat(parts[1])];
+                view.bearing = parseFloat(parts[3]);
+                view.pitch = parseFloat(parts[4]);
+            }
+        }
+        map = new maplibregl.Map({
+            container: 'map',
+            style: { version: 8, sources: { 'satellite-tiles': { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Tiles &copy; Esri' } }, layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite-tiles' }] },
+            center: view.center, zoom: view.zoom, pitch: view.pitch, bearing: view.bearing, maxPitch: 50
+        });
+        map.on('load', setupMapLayers);
+    }
+
+    // 2. Set up base map layers
+    function setupMapLayers() {
+        fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson')
+            .then(response => response.json())
+            .then(geojson => {
+                map.addSource('japan-border', { type: 'geojson', data: geojson });
+                map.addLayer({ id: 'japan-border-layer', type: 'line', source: 'japan-border', layout: {}, paint: { 'line-color': 'white', 'line-width': 1.5 } });
+                prepareNowcastFrames();
+            });
+    }
+
+    // 3. ★★★ 雨雲レーダーの「情報」だけを準備する ★★★
+    function prepareNowcastFrames() {
+        baseTime = new Date();
+        const bufferMinutes = 15;
+        baseTime.setUTCMinutes(baseTime.getUTCMinutes() - (baseTime.getUTCMinutes() % 5) - bufferMinutes);
+        baseTime.setUTCSeconds(0);
+        baseTime.setUTCMilliseconds(0);
+        
+        const baseTimestamp = formatTimestamp(baseTime);
+        const hoursToGoBack = 36;
+        const pastFrames = hoursToGoBack * 6;
+
+        for (let i = pastFrames; i >= -6; i--) {
+            const frameTime = new Date(baseTime.getTime() - i * 10 * 60 * 1000);
+            const frameTimestamp = formatTimestamp(frameTime);
+            
+            let urlTimestamp1, urlTimestamp2;
+            if (frameTime.getTime() > baseTime.getTime()) {
+                urlTimestamp1 = baseTimestamp; urlTimestamp2 = frameTimestamp;
+            } else {
+                urlTimestamp1 = frameTimestamp; urlTimestamp2 = frameTimestamp;
+            }
+            const nowcastTileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${urlTimestamp1}/none/${urlTimestamp2}/surf/hrpns/{z}/{x}/{y}.png`;
+            
+            // レイヤーは作らず、情報だけを配列に格納
+            nowcastFrames.push({
+                id: `nowcast-${frameTimestamp}`,
+                date: frameTime,
+                url: nowcastTileUrl
+            });
+        }
+        
+        timeSlider.max = nowcastFrames.length - 1;
+        const latestTimeIndex = pastFrames;
+        timeSlider.value = latestTimeIndex;
+        updateFrame(latestTimeIndex); // 最初のフレームだけ表示
+
+        ticksDatalist.innerHTML = '';
+        const threeHourInterval = 3 * 6;
+        for (let i = 0; i < nowcastFrames.length; i += threeHourInterval) {
+            const option = document.createElement('option');
+            option.value = i;
+            ticksDatalist.appendChild(option);
+        }
+    }
+
+    // 4. ★★★ 表示時にレイヤーを生成・キャッシュするよう修正 ★★★
+    function updateFrame(frameIndex) {
+        // 前のフレームを非表示
+        if (nowcastFrames[currentFrameIndex] && map.getLayer(nowcastFrames[currentFrameIndex].id)) {
+            map.setLayoutProperty(nowcastFrames[currentFrameIndex].id, 'visibility', 'none');
+        }
+        
+        currentFrameIndex = frameIndex;
+        const frameData = nowcastFrames[currentFrameIndex];
+
+        if (frameData) {
+            // もしレイヤーがまだ地図上に存在しない場合（初回表示）
+            if (!map.getLayer(frameData.id)) {
+                // ソースとレイヤーをここで初めて作成（=取得＆キャッシュ）
+                map.addSource(frameData.id, {
+                    type: 'raster',
+                    tiles: [frameData.url],
+                    tileSize: 256,
+                    maxzoom: 14 
+                });
+                map.addLayer({
+                    id: frameData.id,
+                    type: 'raster',
+                    source: frameData.id,
+                    paint: { 'raster-opacity': 0.8 }
+                });
+            } else {
+                // 既に存在する場合（キャッシュ利用）は表示するだけ
+                map.setLayoutProperty(frameData.id, 'visibility', 'visible');
+            }
+
+            // UIの更新
+            const jstDate = new Date(frameData.date.getTime() + 9 * 60 * 60 * 1000);
+            const jstString = formatJst(jstDate);
+            let timeLabel = "(JST)";
+            if (frameData.date.getTime() < baseTime.getTime()) { timeLabel = "(JST 過去)"; }
+            else if (frameData.date.getTime() > baseTime.getTime()) { timeLabel = "(JST 予報)"; }
+            else { timeLabel = "(JST 現在)"; }
+            timeDisplay.textContent = `時刻: ${jstString} ${timeLabel}`;
+            timeSlider.value = currentFrameIndex;
+        }
+    }
+
+    // 5. Play/Pause Logic
+    function togglePlay() {
+        if (isPlaying) {
+            clearInterval(animationInterval);
+            isPlaying = false;
+            playPauseBtn.textContent = '再生';
+        } else {
+            if (!animationStarted) { updateFrame(0); animationStarted = true; }
+            isPlaying = true;
+            playPauseBtn.textContent = '一時停止';
+            animationInterval = setInterval(() => {
+                let nextFrame = (currentFrameIndex + 1) % nowcastFrames.length;
+                updateFrame(nextFrame);
+            }, speedSlider.value);
+        }
+    }
+    
+    // 6. Change Playback Speed
+    function changeSpeed() { if (isPlaying) { togglePlay(); togglePlay(); } }
+
+    // 7. Event Listeners
+    function setupEventListeners() {
+        playPauseBtn.addEventListener('click', togglePlay);
+        speedSlider.addEventListener('input', changeSpeed);
+        timeSlider.addEventListener('input', (e) => {
+            if (isPlaying) { togglePlay(); }
+            updateFrame(parseInt(e.target.value, 10));
+        });
+
+        map.on('mousemove', (e) => {
+            coordsDisplay.textContent = `緯度: ${e.lngLat.lat.toFixed(4)} 経度: ${e.lngLat.lng.toFixed(4)}`;
+        });
+        map.on('mouseout', () => {
+            coordsDisplay.textContent = '緯度: --.---- 経度: ---.----';
+        });
+
+        const updateUrlHash = () => {
+            if (!hashUpdateScheduled) {
+                hashUpdateScheduled = true;
+                setTimeout(() => {
+                    const center = map.getCenter();
+                    const zoom = map.getZoom();
+                    const bearing = map.getBearing();
+                    const pitch = map.getPitch();
+                    const hash = `#${zoom.toFixed(2)}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}/${bearing.toFixed(2)}/${pitch.toFixed(2)}`;
+                    window.history.replaceState(null, null, hash);
+                    hashUpdateScheduled = false;
+                }, 100);
+            }
+        };
+        map.on('moveend', updateUrlHash);
+        map.on('zoomend', updateUrlHash);
+        map.on('rotateend', updateUrlHash);
+        map.on('pitchend', updateUrlHash);
+    }
+
+    // --- Helper Functions ---
+    function formatTimestamp(d) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${y}${m}${day}${h}${min}00`;
+    }
+    function formatJst(d) {
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${m}/${day} ${h}:${min}`;
+    }
+
+</script>
+</body>
+</html>

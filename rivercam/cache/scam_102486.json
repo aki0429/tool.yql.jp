@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[141.792722222,44.718416667]},"properties":{"id":100257403,"name":"遠別川  1.1Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257403","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

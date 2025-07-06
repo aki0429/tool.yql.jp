@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.8025,42.768611111]},"properties":{"id":100257242,"name":"真狩川  17.2Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257242","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

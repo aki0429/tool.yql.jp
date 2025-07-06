@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.7576895,34.954971]},"properties":{"id":107177004,"name":"福崎","name_kana":"ふくさき","ofc_cd":86,"sys_id":1,"sys_cam_id":"7177004","pause":0,"date_type":2,"cam_kind":4,"own_cd":7177}}]}

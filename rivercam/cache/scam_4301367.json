@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.5447194,33.0591639]},"properties":{"id":311009006,"name":"関川(南関町竜瀬橋)","name_kana":"","ofc_cd":43,"sys_id":3,"sys_cam_id":"43010105","pause":0,"date_type":1,"cam_kind":2,"own_cd":11009}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.7547222,31.7705528]},"properties":{"id":311777012,"name":"日当山橋","name_kana":"","ofc_cd":46,"sys_id":3,"sys_cam_id":"46010048","pause":0,"date_type":1,"cam_kind":2,"own_cd":11777}}]}

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高解像度ナウキャスト on 衛星画像 (2D版)</title>
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { width: 100vw; height: 100vh; background-color: #333; }
+        #controls-wrapper {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: auto;
+        }
+        #timeline-controls, #main-controls {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        #timeline-container { position: relative; width: 400px; }
+        #timeSlider { width: 100%; margin: 0; }
+        #playPauseBtn { font-size: 16px; padding: 5px 10px; cursor: pointer; width: 80px; }
+        #speedSlider { width: 120px; }
+        #timeDisplay { font-size: 14px; font-weight: bold; min-width: 170px; text-align: center; }
+        #coordsDisplay { font-size: 14px; padding: 5px 10px; min-width: 230px; }
+
+        @media (max-width: 768px) {
+            #controls-wrapper { width: 95%; bottom: 10px; }
+            #timeline-controls, #main-controls { width: 100%; box-sizing: border-box; flex-wrap: wrap; justify-content: center; padding: 8px; gap: 8px; }
+            #timeline-container { width: 100%; }
+            #coordsDisplay { width: 100%; text-align: center; order: -1; margin-bottom: 5px; min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div id="controls-wrapper">
+        <div id="timeline-controls">
+            <div id="timeline-container">
+                <input type="range" id="timeSlider" value="0">
+            </div>
+        </div>
+        <div id="main-controls">
+            <div id="coordsDisplay">緯度: --.---- 経度: ---.----</div>
+            <button id="playPauseBtn">再生</button>
+            <input type="range" id="speedSlider" min="100" max="2000" value="500" step="100">
+            <div id="timeDisplay">--/-- --:--</div>
+        </div>
+    </div>
+
+<script>
+    // --- Global Variables ---
+    let map;
+    let nowcastFrames = [];
+    let layerCache = {}; // 作成したレイヤーをキャッシュするオブジェクト
+    let currentFrameIndex = 0;
+    let isPlaying = false;
+    let animationInterval;
+    let animationStarted = false;
+    let hashUpdateScheduled = false;
+    let baseTime;
+
+    // --- UI Elements ---
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const speedSlider = document.getElementById('speedSlider');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const coordsDisplay = document.getElementById('coordsDisplay');
+    
+    // --- Initialization ---
+    initializeMap();
+    setupEventListeners();
+
+    // 1. Initialize Map
+    function initializeMap() {
+        let view = [34.6468, 137.3401];
+        let zoom = 7;
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const parts = hash.split('/');
+            // 2Dなので緯度/経度/ズームのみ
+            if (parts.length === 3) {
+                zoom = parseFloat(parts[0]);
+                view = [parseFloat(parts[1]), parseFloat(parts[2])];
+            }
+        }
+        map = L.map('map').setView(view, zoom);
+        setupBaseMap();
+    }
+
+    // 2. Set up base map layers
+    function setupBaseMap() {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson')
+            .then(response => response.json())
+            .then(geojson => {
+                L.geoJSON(geojson, {
+                    style: { fill: false, stroke: true, color: 'white', weight: 1.5 }
+                }).addTo(map);
+                prepareNowcastFrames();
+            });
+    }
+
+    // 3. Prepare Weather Radar Frames (without creating layers yet)
+    function prepareNowcastFrames() {
+        baseTime = new Date();
+        const bufferMinutes = 15;
+        baseTime.setUTCMinutes(baseTime.getUTCMinutes() - (baseTime.getUTCMinutes() % 5) - bufferMinutes);
+        baseTime.setUTCSeconds(0);
+        baseTime.setUTCMilliseconds(0);
+        
+        const baseTimestamp = formatTimestamp(baseTime);
+        const hoursToGoBack = 36;
+        const pastFrames = hoursToGoBack * 6;
+
+        for (let i = pastFrames; i >= -6; i--) {
+            const frameTime = new Date(baseTime.getTime() - i * 10 * 60 * 1000);
+            const frameTimestamp = formatTimestamp(frameTime);
+            
+            let urlTimestamp1, urlTimestamp2;
+            if (frameTime.getTime() > baseTime.getTime()) {
+                urlTimestamp1 = baseTimestamp; urlTimestamp2 = frameTimestamp;
+            } else {
+                urlTimestamp1 = frameTimestamp; urlTimestamp2 = frameTimestamp;
+            }
+            const nowcastTileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${urlTimestamp1}/none/${urlTimestamp2}/surf/hrpns/{z}/{x}/{y}.png`;
+            
+            nowcastFrames.push({
+                id: `nowcast-${frameTimestamp}`,
+                date: frameTime,
+                url: nowcastTileUrl
+            });
+        }
+        
+        timeSlider.max = nowcastFrames.length - 1;
+        const latestTimeIndex = pastFrames;
+        timeSlider.value = latestTimeIndex;
+        updateFrame(latestTimeIndex);
+    }
+
+    // 4. Display the Specified Radar Frame (Lazy Load + Cache)
+    function updateFrame(frameIndex) {
+        // 前のフレームを削除
+        if (layerCache[nowcastFrames[currentFrameIndex].id]) {
+            map.removeLayer(layerCache[nowcastFrames[currentFrameIndex].id]);
+        }
+        
+        currentFrameIndex = frameIndex;
+        const frameData = nowcastFrames[currentFrameIndex];
+
+        if (frameData) {
+            // もしレイヤーがキャッシュにあれば、それを使う
+            if (layerCache[frameData.id]) {
+                map.addLayer(layerCache[frameData.id]);
+            } else {
+                // なければ新しく作成してキャッシュに保存
+                const newLayer = L.tileLayer(frameData.url, {
+                    opacity: 0.8,
+                    attribution: '高解像度降水ナウキャスト (C)気象庁',
+                    maxNativeZoom: 14 // 奇数ズームレベル対応
+                });
+                layerCache[frameData.id] = newLayer;
+                map.addLayer(newLayer);
+            }
+
+            // UIの更新
+            const jstDate = new Date(frameData.date.getTime() + 9 * 60 * 60 * 1000);
+            const jstString = formatJst(jstDate);
+            let timeLabel = "(JST)";
+            if (frameData.date.getTime() < baseTime.getTime()) { timeLabel = "(JST 過去)"; }
+            else if (frameData.date.getTime() > baseTime.getTime()) { timeLabel = "(JST 予報)"; }
+            else { timeLabel = "(JST 現在)"; }
+            timeDisplay.textContent = `時刻: ${jstString} ${timeLabel}`;
+            timeSlider.value = currentFrameIndex;
+        }
+    }
+
+    // 5. Play/Pause Logic
+    function togglePlay() {
+        if (isPlaying) {
+            clearInterval(animationInterval);
+            isPlaying = false;
+            playPauseBtn.textContent = '再生';
+        } else {
+            if (!animationStarted) { updateFrame(0); animationStarted = true; }
+            isPlaying = true;
+            playPauseBtn.textContent = '一時停止';
+            animationInterval = setInterval(() => {
+                let nextFrame = (currentFrameIndex + 1) % nowcastFrames.length;
+                updateFrame(nextFrame);
+            }, speedSlider.value);
+        }
+    }
+    
+    // 6. Change Playback Speed
+    function changeSpeed() { if (isPlaying) { togglePlay(); togglePlay(); } }
+
+    // 7. Set Up Event Listeners
+    function setupEventListeners() {
+        playPauseBtn.addEventListener('click', togglePlay);
+        speedSlider.addEventListener('input', changeSpeed);
+        timeSlider.addEventListener('input', (e) => {
+            if (isPlaying) { togglePlay(); }
+            updateFrame(parseInt(e.target.value, 10));
+        });
+
+        map.on('mousemove', (e) => {
+            coordsDisplay.textContent = `緯度: ${e.latlng.lat.toFixed(4)} 経度: ${e.latlng.lng.toFixed(4)}`;
+        });
+        map.on('mouseout', () => {
+            coordsDisplay.textContent = '緯度: --.---- 経度: ---.----';
+        });
+
+        map.on('moveend', () => {
+            if (!hashUpdateScheduled) {
+                hashUpdateScheduled = true;
+                setTimeout(() => {
+                    const center = map.getCenter();
+                    const zoom = map.getZoom();
+                    const hash = `#${zoom}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}`;
+                    window.history.replaceState(null, null, hash);
+                    hashUpdateScheduled = false;
+                }, 100);
+            }
+        });
+    }
+
+    // --- Helper Functions ---
+    function formatTimestamp(d) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${y}${m}${day}${h}${min}00`;
+    }
+    function formatJst(d) {
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${m}/${day} ${h}:${min}`;
+    }
+
+</script>
+</body>
+</html>

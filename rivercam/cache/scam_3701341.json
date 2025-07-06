@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.135837,34.260981]},"properties":{"id":109473003,"name":"氷上橋","name_kana":"ひかみばし","ofc_cd":88,"sys_id":1,"sys_cam_id":"9473003","pause":0,"date_type":2,"cam_kind":4,"own_cd":9473}}]}

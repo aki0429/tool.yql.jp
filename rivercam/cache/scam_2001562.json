@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.39877222,36.86042222]},"properties":{"id":105121165,"name":"樽川橋","name_kana":"たるかわはし","ofc_cd":84,"sys_id":1,"sys_cam_id":"5121165","pause":0,"date_type":1,"cam_kind":4,"own_cd":5121}}]}

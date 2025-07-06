@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.0838889,36.223475]},"properties":{"id":221293009,"name":"肥土","name_kana":"","ofc_cd":83,"sys_id":2,"sys_cam_id":"10010016","pause":0,"date_type":0,"cam_kind":2,"own_cd":21293}}]}

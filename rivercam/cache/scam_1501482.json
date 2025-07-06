@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.6400583,37.020452]},"properties":{"id":103841089,"name":"割野","name_kana":"","ofc_cd":84,"sys_id":1,"sys_cam_id":"3841089","pause":0,"date_type":1,"cam_kind":4,"own_cd":3841}}]}

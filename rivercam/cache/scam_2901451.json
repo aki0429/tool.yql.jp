@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.003703,34.176163]},"properties":{"id":107425067,"name":"西原","name_kana":"にしはら","ofc_cd":86,"sys_id":1,"sys_cam_id":"7425067","pause":0,"date_type":0,"cam_kind":4,"own_cd":7425}}]}

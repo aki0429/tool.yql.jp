@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.118306,35.615829]},"properties":{"id":104865037,"name":"桂川　桂川橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"4865037","pause":0,"date_type":2,"cam_kind":4,"own_cd":4865}}]}

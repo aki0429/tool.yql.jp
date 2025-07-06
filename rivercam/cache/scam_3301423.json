@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[133.824389,34.596417]},"properties":{"id":108449058,"name":"汐入川／早島町前潟","name_kana":"","ofc_cd":87,"sys_id":1,"sys_cam_id":"8449058","pause":0,"date_type":1,"cam_kind":4,"own_cd":8449}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[129.683514,32.942335]},"properties":{"id":110753009,"name":"奥浦（雪浦川）","name_kana":"","ofc_cd":89,"sys_id":1,"sys_cam_id":"10753009","pause":0,"date_type":2,"cam_kind":4,"own_cd":10753}}]}

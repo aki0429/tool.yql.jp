@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.712283333,35.64805]},"properties":{"id":303329014,"name":"渋谷橋","name_kana":"","ofc_cd":13,"sys_id":3,"sys_cam_id":"3329014","pause":0,"date_type":0,"cam_kind":2,"own_cd":3329}}]}

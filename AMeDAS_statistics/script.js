@@ -20,137 +20,163 @@ document.addEventListener('DOMContentLoaded', () => {
         summerBtn.classList.remove('active');
     });
 
-    // キャッシュ用のオブジェクト
-    const dataCache = {};
+    // --- キャッシュ関連の定数と関数 ---
+    const CACHE_KEY_PREFIX = 'amedas-stats-cache-';
+    const CACHE_EXPIRATION_MS = 90 * 1000; // キャッシュの有効期限を90秒に設定（当日のため短縮）
 
-    // キャッシュにデータを追加する関数
-    function cacheData(date, data) {
-        // キャッシュの最大サイズを設定（例：100件）
-        const maxCacheSize = 100;
-        // キャッシュの有効期限を設定（例：1日）
-        const cacheExpiration = 24 * 60 * 60 * 1000; // ミリ秒
+    /**
+     * ローカルストレージから指定日のキャッシュを取得する
+     * @param {string} dateString - 'YYYY-MM-DD'形式の日付文字列
+     * @returns {object|null} - キャッシュデータ、またはnull
+     */
+    function getCache(dateString) {
+        const cacheKey = CACHE_KEY_PREFIX + dateString;
+        const cachedItem = localStorage.getItem(cacheKey);
+        if (!cachedItem) {
+            return null;
+        }
 
-        dataCache[date] = {
-            time: new Date(),
+        const { timestamp, data } = JSON.parse(cachedItem);
+        // 有効期限をチェック
+        if (Date.now() - timestamp > CACHE_EXPIRATION_MS) {
+            localStorage.removeItem(cacheKey); // 期限切れのキャッシュを削除
+            console.log(`キャッシュ(key: ${cacheKey})は期限切れのため削除しました。`);
+            return null;
+        }
+        return data;
+    }
+
+    /**
+     * 計算済みの統計データをローカルストレージに保存する
+     * @param {string} dateString - 'YYYY-MM-DD'形式の日付文字列
+     * @param {object} data - 保存する統計データ
+     */
+    function setCache(dateString, data) {
+        const cacheKey = CACHE_KEY_PREFIX + dateString;
+        const itemToCache = {
+            timestamp: Date.now(),
             data: data
         };
-
-        // キャッシュのサイズが上限を超えたら古いデータを削除
-        if (Object.keys(dataCache).length > maxCacheSize) {
-            const oldestDate = Object.keys(dataCache).reduce((a, b) => new Date(a) < new Date(b) ? a : b);
-            delete dataCache[oldestDate];
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify(itemToCache));
+            console.log(`統計データをキャッシュに保存しました (key: ${cacheKey})`);
+        } catch (e) {
+            console.error('ローカルストレージへの保存に失敗しました。ストレージが満杯の可能性があります。', e);
         }
-
-        // 定期的にキャッシュをクリアする（例：1時間に1回）
-        setInterval(() => {
-            const now = new Date();
-            Object.keys(dataCache).forEach(date => {
-                if (now - new Date(dataCache[date].time) > cacheExpiration) {
-                    delete dataCache[date];
-                }
-            });
-        }, 60 * 60 * 1000);
     }
 
-    // キャッシュからデータを取得する関数
-    function getDataFromCache(date) {
-        const cachedData = dataCache[date];
-        if (cachedData) {
-            return cachedData.data;
-        }
-        return null;
-    }
+    /**
+     * AMeDASデータを取得し、統計を計算・表示するメイン関数
+     */
+    async function fetchAndProcessAmedasData() {
+        setLoadingState(true); // UIを「計算中」表示に
 
-    // AMeDASデータを取得する関数
-    async function fetchAmedasData() {
-        const now = new Date();
-        const latestDate = new Date();
-        latestDate.setDate(latestDate.getDate() - 1); // 前日に設定
+        // --- 変更点 1: 集計対象を当日に変更 ---
+        const targetDate = new Date();
+        // targetDate.setDate(targetDate.getDate() - 1); // 前日を取得する行を削除
+        const dateString = targetDate.toISOString().split('T')[0]; // 'YYYY-MM-DD'形式
 
-        const dateString = latestDate.toISOString().split('T')[0]; // YYYY-MM-DD形式
-
-        const cachedData = getDataFromCache(dateString);
-        if (cachedData) {
-            console.log('キャッシュからデータを取得しました', cachedData);
-            return cachedData; // キャッシュされたデータを返す
+        // 1. まずキャッシュを確認
+        const cachedStats = getCache(dateString);
+        if (cachedStats) {
+            console.log('有効なキャッシュが見つかりました。キャッシュからデータを表示します。');
+            updateStatisticsUI(cachedStats);
+            updateLastUpdateDate(targetDate);
+            setLoadingState(false);
+            return; // キャッシュがあったので処理終了
         }
 
-        // 気象庁のAPIからデータを取得する処理
-        const timeResponse = await fetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt');
-        if (!timeResponse.ok) {
-            throw new Error(`最新時刻の取得に失敗しました (${timeResponse.status})`);
-        }
-        const latestTimeISO = await timeResponse.text();
-        console.log('取得した時刻(ISO):', latestTimeISO);
+        console.log('キャッシュがないか期限切れです。気象庁APIから新規にデータを取得・集計します。');
+        console.warn('この処理は時間がかかる場合があります...');
 
-        const latestTime = new Date(latestTimeISO);
-        latestTime.setDate(latestTime.getDate() - 1); // 前日に設定
+        try {
+            // 2. 地点ごとの日最高・最低気温を記録するオブジェクト
+            const dailyTemperatures = {}; // 構造: { "地点コード": { max: -Infinity, min: Infinity } }
 
-        const startHour = 0; // 0時
-        const endHour = 23; // 23時まで
-        const observationData = [];
+            const datePrefix = `${targetDate.getFullYear()}${String(targetDate.getMonth() + 1).padStart(2, '0')}${String(targetDate.getDate()).padStart(2, '0')}`;
 
-        // 0時から23時までのデータを10分ごとに取得
-        for (let hour = startHour; hour <= endHour; hour++) {
-            for (let minute = 0; minute < 60; minute += 10) {
-                const timeString = `${latestTime.getFullYear()}${String(latestTime.getMonth() + 1).padStart(2, '0')}${String(latestTime.getDate()).padStart(2, '0')}${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}00`;
-                const observationUrl = `https://www.jma.go.jp/bosai/amedas/data/map/${timeString}.json`;
-                console.log('観測データURL:', observationUrl);
-                
-                const response = await fetch(observationUrl);
-                if (!response.ok) {
-                    console.error(`データ取得失敗: ${timeString}`);
-                    continue;
-                }
+            // 3. 当日の00:00から現在時刻までのデータを10分ごとに取得し、最高・最低気温を更新
+            for (let hour = 0; hour < 24; hour++) {
+                for (let minute = 0; minute < 60; minute += 10) {
+                    // 未来の時刻のデータは存在しないため、リクエストをスキップ
+                    const now = new Date();
+                    const requestTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, minute);
+                    if (requestTime > now) {
+                        // ループを抜けて集計処理へ
+                        hour = 24;
+                        minute = 60;
+                        continue;
+                    }
 
-                const data = await response.json();
-                observationData.push(data);
+                    const timeString = `${datePrefix}${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}00`;
+                    const url = `https://www.jma.go.jp/bosai/amedas/data/map/${timeString}.json`;
 
-                // データをキャッシュする
-                cacheData(dateString, data);
-            }
-        }
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            const data = await response.json();
+                            for (const stationCode in data) {
+                                const stationData = data[stationCode];
+                                const temp = stationData.temp ? stationData.temp[0] : null;
+                                const quality = stationData.temp ? stationData.temp[1] : -1;
 
-        // 統計の計算
-        let stats = {
-            extremeHotCount: 0,  // 猛暑日 (35℃以上)
-            veryHotCount: 0,     // 真夏日 (30℃以上)
-            hotCount: 0,         // 夏日 (25℃以上)
-            extremeColdCount: 0, // 真冬日 (最高気温が0℃未満)
-            coldCount: 0         // 冬日 (最低気温が0℃未満)
-        };
-
-        // 各地点のデータを解析
-        for (const data of observationData) {
-            if (data && data.temp && Array.isArray(data.temp)) {
-                const temp = data.temp[0];  // 現在の気温
-                
-                // クオリティコードが0（正常値）の場合のみ処理
-                if (data.temp[1] === 0 && temp !== null) {
-                    // 夏季の統計
-                    if (temp >= 35) stats.extremeHotCount++;
-                    if (temp >= 30) stats.veryHotCount++;
-                    if (temp >= 25) stats.hotCount++;
-                    
-                    // 冬季の統計（真冬日）
-                    if (temp < 0) stats.extremeColdCount++;
-                    
-                    // 冬日の判定（最低気温が0℃未満）
-                    if (temp < 0) stats.coldCount++;
+                                if (quality === 0 && temp !== null) { // 正常な値のみ
+                                    if (!dailyTemperatures[stationCode]) {
+                                        dailyTemperatures[stationCode] = { max: -Infinity, min: Infinity, hasData: false };
+                                    }
+                                    dailyTemperatures[stationCode].max = Math.max(dailyTemperatures[stationCode].max, temp);
+                                    dailyTemperatures[stationCode].min = Math.min(dailyTemperatures[stationCode].min, temp);
+                                    dailyTemperatures[stationCode].hasData = true;
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        // 一部の時刻でデータが取得できなくても処理を継続する
+                        console.warn(`時刻 ${timeString} のデータ取得に失敗しました。処理を続行します。`);
+                    }
                 }
             }
+
+            // 4. 正しい定義に基づいて統計を計算
+            const stats = {
+                extremeHotCount: 0,  // 猛暑日 (最高気温 >= 35℃)
+                veryHotCount: 0,     // 真夏日 (最高気温 >= 30℃)
+                hotCount: 0,         // 夏日   (最高気温 >= 25℃)
+                extremeColdCount: 0, // 真冬日 (最高気温 < 0℃)
+                coldCount: 0         // 冬日   (最低気温 < 0℃)
+            };
+
+            for (const stationCode in dailyTemperatures) {
+                const temps = dailyTemperatures[stationCode];
+                if (!temps.hasData) continue; // 有効なデータがなかった地点はスキップ
+
+                if (temps.max >= 35) stats.extremeHotCount++;
+                if (temps.max >= 30) stats.veryHotCount++;
+                if (temps.max >= 25) stats.hotCount++;
+                if (temps.max < 0) stats.extremeColdCount++;
+                if (temps.min < 0) stats.coldCount++;
+            }
+            
+            console.log('集計が完了しました。', stats);
+
+            // 5. 結果をUIに反映し、キャッシュに保存
+            updateStatisticsUI(stats);
+            updateLastUpdateDate(targetDate);
+            setCache(dateString, stats);
+
+        } catch (error) {
+            console.error('データ取得または集計中に致命的なエラーが発生しました:', error);
+            lastUpdate.textContent = 'データ取得・集計に失敗しました。';
+        } finally {
+            setLoadingState(false); // UIを通常表示に戻す
         }
-
-        console.log('統計計算結果:', stats);
-
-        // 統計の更新
-        updateStatistics(stats);
-        
-        // 最終更新時刻の更新
-        lastUpdate.textContent = latestTime.toLocaleString('ja-JP');
     }
 
-    function updateStatistics(stats) {
+    /**
+     * UIの表示を更新する
+     * @param {object} stats - 表示する統計データ
+     */
+    function updateStatisticsUI(stats) {
         document.getElementById('extremeHotCount').textContent = stats.extremeHotCount;
         document.getElementById('veryHotCount').textContent = stats.veryHotCount;
         document.getElementById('hotCount').textContent = stats.hotCount;
@@ -158,9 +184,34 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('coldCount').textContent = stats.coldCount;
     }
 
-    // 初回データ取得
-    fetchAmedasData();
+    /**
+     * 集計対象の日付をUIに表示する
+     * @param {Date} date - 集計対象日
+     */
+    function updateLastUpdateDate(date) {
+        lastUpdate.textContent = `${date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })} の集計データ`;
+    }
 
-    // 定期的なデータ更新（10分ごと）
-    setInterval(fetchAmedasData, 600000);
+    /**
+     * 処理中のロード状態をUIに反映させる
+     * @param {boolean} isLoading - 処理中かどうか
+     */
+    function setLoadingState(isLoading) {
+        const loadingText = '計算中...';
+        if (isLoading) {
+            document.querySelectorAll('.count').forEach(el => el.textContent = loadingText);
+            // --- 変更点 2: メッセージを当日に変更 ---
+            lastUpdate.textContent = '本日のデータを集計しています...';
+        }
+    }
+
+
+    // --- 初期実行と定期実行 ---
+    
+    // ページ読み込み時に初回データを取得・計算
+    fetchAndProcessAmedasData();
+
+    // 15分ごとにキャッシュの有効性を確認し、必要であればデータを再取得する
+    // 当日データを扱うため、更新頻度を少し高めます
+    setInterval(fetchAndProcessAmedasData, 60 * 1000);
 });

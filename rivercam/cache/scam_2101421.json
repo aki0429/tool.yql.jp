@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.6906003,35.4348541]},"properties":{"id":105377009,"name":"天王川前波橋","name_kana":"","ofc_cd":85,"sys_id":1,"sys_cam_id":"5377009","pause":0,"date_type":1,"cam_kind":4,"own_cd":5377}}]}

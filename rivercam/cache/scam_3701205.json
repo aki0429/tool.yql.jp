@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[133.67271,34.138394]},"properties":{"id":109473021,"name":"鹿隈橋","name_kana":"かなくまばし","ofc_cd":88,"sys_id":1,"sys_cam_id":"9473021","pause":0,"date_type":2,"cam_kind":4,"own_cd":9473}}]}

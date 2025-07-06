@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.42346,35.67956]},"properties":{"id":221320041,"name":"中央自動車道上流","name_kana":"ちゅうおうじどうしゃどうじょうりゅう","ofc_cd":83,"sys_id":2,"sys_cam_id":"21320016","pause":0,"date_type":0,"cam_kind":2,"own_cd":21320}}]}

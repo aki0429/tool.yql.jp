@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.59535277,34.72626111]},"properties":{"id":106913088,"name":"桑才","name_kana":"くわざい","ofc_cd":86,"sys_id":1,"sys_cam_id":"6913088","pause":0,"date_type":2,"cam_kind":4,"own_cd":6913}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.9474399,35.7586666]},"properties":{"id":104865053,"name":"小管川　田元橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"4865053","pause":0,"date_type":2,"cam_kind":4,"own_cd":4865}}]}

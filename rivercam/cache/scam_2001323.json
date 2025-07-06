@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.536583,36.307317]},"properties":{"id":105121028,"name":"広戸橋","name_kana":"ひろとばし","ofc_cd":84,"sys_id":1,"sys_cam_id":"5121028","pause":0,"date_type":2,"cam_kind":4,"own_cd":5121}}]}

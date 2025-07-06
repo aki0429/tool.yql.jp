@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.109525,35.157521]},"properties":{"id":103585100,"name":"新崎川　宮渡橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"3585100","pause":0,"date_type":0,"cam_kind":4,"own_cd":3585}}]}

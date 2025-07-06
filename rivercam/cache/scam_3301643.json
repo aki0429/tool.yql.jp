@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.335556,35.169194]},"properties":{"id":108449064,"name":"吉野川／西粟倉村長尾（高田橋）","name_kana":"","ofc_cd":87,"sys_id":1,"sys_cam_id":"8449064","pause":0,"date_type":1,"cam_kind":4,"own_cd":8449}}]}

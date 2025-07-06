@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.32797,34.95016]},"properties":{"id":107179006,"name":"笹尾","name_kana":"ささお","ofc_cd":86,"sys_id":1,"sys_cam_id":"7179006","pause":0,"date_type":1,"cam_kind":4,"own_cd":7179}}]}

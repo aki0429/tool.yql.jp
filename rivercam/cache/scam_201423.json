@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.910861,41.493167]},"properties":{"id":100513072,"name":"奥戸川（奥戸橋）","name_kana":"","ofc_cd":82,"sys_id":1,"sys_cam_id":"513072","pause":0,"date_type":2,"cam_kind":4,"own_cd":513}}]}

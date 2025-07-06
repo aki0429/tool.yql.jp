@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[131.1858333,33.5683778]},"properties":{"id":222836001,"name":"下唐原水位観測所","name_kana":"","ofc_cd":89,"sys_id":2,"sys_cam_id":"40010033","pause":0,"date_type":0,"cam_kind":2,"own_cd":22836}}]}

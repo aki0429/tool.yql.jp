@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.0134219,33.4273677]},"properties":{"id":109985007,"name":"巽枦地橋","name_kana":"","ofc_cd":88,"sys_id":1,"sys_cam_id":"9985007","pause":0,"date_type":0,"cam_kind":4,"own_cd":9985}}]}

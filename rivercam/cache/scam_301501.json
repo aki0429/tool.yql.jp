@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[141.42277777,40.34333333]},"properties":{"id":100769055,"name":"瀬月内橋","name_kana":"","ofc_cd":82,"sys_id":1,"sys_cam_id":"769055","pause":0,"date_type":1,"cam_kind":4,"own_cd":769}}]}

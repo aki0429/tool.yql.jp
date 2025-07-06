@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.5184778,33.4992833]},"properties":{"id":310253002,"name":"平成橋","name_kana":"","ofc_cd":40,"sys_id":3,"sys_cam_id":"40010042","pause":0,"date_type":1,"cam_kind":2,"own_cd":10253}}]}

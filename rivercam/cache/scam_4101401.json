@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[129.893888888,33.174333333]},"properties":{"id":310497029,"name":"菅野橋","name_kana":"","ofc_cd":41,"sys_id":3,"sys_cam_id":"41010122","pause":0,"date_type":1,"cam_kind":2,"own_cd":10497}}]}

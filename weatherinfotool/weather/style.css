@@ -1,0 +1,94 @@
+/* 基本的なページのスタイル */
+body {
+    margin: 0; /* ブラウザのデフォルトマージンを削除 */
+    padding: 0; /* ブラウザのデフォルトパディングを削除 */
+    background-color: #0a0a0f; /* 全体の背景を画像に合わせる (非常に暗い青紫系) */
+    color: #fff;
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    overflow: hidden; /* スクロールバーを隠す（地図が完全に画面にフィットする場合） */
+}
+
+/* マップコンテナのスタイル */
+#map {
+    height: 100vh; /* ビューポートの高さ全体 */
+    width: 100vw;  /* ビューポートの幅全体 */
+    background-color: #0A0A0F; /* マップタイルがロードされるまでの背景色 (画像に合わせる) */
+}
+
+/* エラーメッセージのスタイル */
+.error-message-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000; /* マップより手前に表示 */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.error-message {
+    background-color: #d9534f; /* エラー背景色 (赤系) */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.error-message-geojson {
+    background-color: #f0ad4e; /* 警告背景色 (オレンジ系) */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+/* Leafletのポップアップスタイル調整 (オプション) */
+.leaflet-popup-content-wrapper {
+    border-radius: 5px;
+    background-color: #1c1c22; /* ポップアップ背景色 (少し明るめのダークブルー) */
+    color: #e0e0e0; /* ポップアップ文字色 */
+    border: 1px solid #2a2a30;
+}
+.leaflet-popup-tip {
+    background-color: #1c1c22; /* ポップアップの吹き出し部分 */
+}
+
+.leaflet-popup-content {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* ★★★ ご提示の画像に合わせた超ダークミニマルタイル用のCSSフィルター ★★★ */
+.custom-dark-tile {
+    filter: invert(100%) /* light_nolabels (明るい陸地/白い海) を反転 → 暗い陸地/黒い海 */
+            brightness(15%) /* 全体を極限まで暗くする (ほぼ黒に近い背景に) */
+            contrast(60%)   /* 陸地と海のコントラストを少し持たせ、陸地を非常にわずかに認識できるように */
+            saturate(300%)  /* 反転によって生じた可能性のある色味を強調 */
+            hue-rotate(235deg) /* 色相を青紫系（インディゴやダークバイオレット方向）に回転 */
+            grayscale(40%); /* 全体の彩度をかなり落とし、ごくわずかな青紫の色味を残す */
+}
+/*
+    フィルターの解説:
+    - invert(100%): 元の `light_nolabels` タイル（明るいグレーの陸地、白い海）の色を反転させます。
+                     これにより、陸地は暗いグレーに、海は黒になります。
+    - brightness(15%): 全体の明るさを大幅に下げます。これにより、海はほぼ真っ黒に、陸地も非常に暗くなります。
+                       (10%～20%の範囲で調整すると、陸地の見え方が変わります)
+    - contrast(60%): 海と陸地のコントラストを調整します。値を低めにすることで陸地が背景に溶け込みやすくなり、
+                     ごくわずかに見えるようにします。 (50%～70%で調整)
+    - saturate(300%): 色の彩度を一時的に上げます。これは、反転処理で生まれた微妙な色合いを強調し、
+                      次の `hue-rotate` で色を乗せやすくするためです。
+    - hue-rotate(235deg): 色相を回転させ、陸地にわずかな青紫系の色味を与えます。
+                          (220deg～250degの範囲で青みや紫みの度合いが変わります)
+    - grayscale(40%): 最後に全体の彩度を再び下げます。これにより、強調された色が落ち着き、
+                      ごくわずかで落ち着いた青紫の色味だけが陸地に乗るようになります。
+                      (30%～60%で調整)
+
+    これらの値を微調整することで、ご提示の画像により近い見た目にすることができます。
+    body と #map の background-color も、タイルがロードされるまでの背景として、
+    ご提示の画像に近い非常に暗い青系の色 (#0A0A0F) に設定しました。
+*/

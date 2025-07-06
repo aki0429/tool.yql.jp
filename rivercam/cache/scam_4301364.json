@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.6274972,32.9147222]},"properties":{"id":311009002,"name":"木葉川(玉東町木葉)","name_kana":"","ofc_cd":43,"sys_id":3,"sys_cam_id":"43010101","pause":0,"date_type":1,"cam_kind":2,"own_cd":11009}}]}

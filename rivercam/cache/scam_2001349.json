@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.1248541,36.3672399]},"properties":{"id":105121178,"name":"夫神橋上","name_kana":"おがみばし","ofc_cd":84,"sys_id":1,"sys_cam_id":"5121178","pause":0,"date_type":1,"cam_kind":4,"own_cd":5121}}]}

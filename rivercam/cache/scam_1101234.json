@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.8206,35.8212]},"properties":{"id":221279020,"name":"八潮市柳之宮　１２．９右","name_kana":"やしおしやなぎのみや　１２．９みぎ","ofc_cd":83,"sys_id":2,"sys_cam_id":"21279002","pause":0,"date_type":0,"cam_kind":2,"own_cd":21279}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[137.8504914,35.3892303]},"properties":{"id":105121084,"name":"三耕地","name_kana":"さんこうち","ofc_cd":85,"sys_id":1,"sys_cam_id":"5121084","pause":0,"date_type":2,"cam_kind":4,"own_cd":5121}}]}

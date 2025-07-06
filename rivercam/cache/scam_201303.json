@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.49822222,41.17827777]},"properties":{"id":100513001,"name":"今別川（大川平）","name_kana":"","ofc_cd":82,"sys_id":1,"sys_cam_id":"513001","pause":0,"date_type":2,"cam_kind":4,"own_cd":513}}]}

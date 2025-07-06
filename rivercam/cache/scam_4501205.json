@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.9092472,31.9783028]},"properties":{"id":311526002,"name":"巣の浦","name_kana":"","ofc_cd":45,"sys_id":3,"sys_cam_id":"45010087","pause":0,"date_type":1,"cam_kind":2,"own_cd":11526}}]}

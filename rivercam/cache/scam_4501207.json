@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[131.2438861,31.48]},"properties":{"id":311524001,"name":"上町橋","name_kana":"","ofc_cd":45,"sys_id":3,"sys_cam_id":"45010080","pause":0,"date_type":1,"cam_kind":2,"own_cd":11524}}]}

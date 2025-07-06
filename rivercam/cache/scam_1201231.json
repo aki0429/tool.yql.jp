@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.1547583,35.8412778]},"properties":{"id":221269004,"name":"利根川　木下（千葉県印西）","name_kana":"","ofc_cd":83,"sys_id":2,"sys_cam_id":"12010015","pause":0,"date_type":0,"cam_kind":2,"own_cd":21269}}]}

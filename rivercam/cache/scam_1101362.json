@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.108506,36.080886]},"properties":{"id":221262003,"name":"親鼻水位観測所","name_kana":"おやはなすいいかんそくしょ","ofc_cd":83,"sys_id":2,"sys_cam_id":"21262003","pause":0,"date_type":0,"cam_kind":3,"own_cd":21262}}]}

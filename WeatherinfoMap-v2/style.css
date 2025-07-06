@@ -1,0 +1,52 @@
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    margin-bottom: 20px;
+}
+
+.controls {
+    margin: 10px 0;
+}
+
+#map {
+    height: 600px;
+    border: 1px solid #ccc;
+}
+
+.legend {
+    margin-top: 20px;
+    padding: 10px;
+    background: white;
+    border: 1px solid #ccc;
+}
+
+.legend-item {
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+}
+
+.color-box {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+.color-box.special {
+    background-color: #000000;
+    border: 1px solid #666;
+}
+
+.color-box.warning {
+    background-color: #ff0000;
+    border: 1px solid #666;
+}
+
+.color-box.advisory {
+    background-color: #ffff00;
+    border: 1px solid #666;
+}

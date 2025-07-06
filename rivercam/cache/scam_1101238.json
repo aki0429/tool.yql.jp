@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.649264,36.016294]},"properties":{"id":102817030,"name":"蓮田観測局","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"2817030","pause":0,"date_type":1,"cam_kind":4,"own_cd":2817}}]}

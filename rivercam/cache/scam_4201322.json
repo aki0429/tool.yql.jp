@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[129.866075,33.077253]},"properties":{"id":110753018,"name":"山道橋（川棚川）","name_kana":"","ofc_cd":89,"sys_id":1,"sys_cam_id":"10753018","pause":0,"date_type":2,"cam_kind":4,"own_cd":10753}}]}
