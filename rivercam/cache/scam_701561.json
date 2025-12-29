@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.890744,37.890744]},"properties":{"id":101793215,"name":"埒川　","name_kana":"らちがわ","ofc_cd":82,"sys_id":1,"sys_cam_id":"1793215","pause":0,"date_type":2,"cam_kind":4,"own_cd":1793}}]}

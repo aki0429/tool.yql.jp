@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.523825,33.417594444]},"properties":{"id":310497004,"name":"牛会橋","name_kana":"","ofc_cd":41,"sys_id":3,"sys_cam_id":"41010022","pause":0,"date_type":1,"cam_kind":2,"own_cd":10497}}]}

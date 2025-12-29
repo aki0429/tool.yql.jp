@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[142.861948889,44.335]},"properties":{"id":100257428,"name":"興部川  39.2Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257428","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

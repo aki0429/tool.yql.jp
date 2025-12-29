@@ -1,0 +1,11 @@
+{
+    "name": "akki/html",
+    "autoload": {
+        "psr-4": {
+            "Akki\\Html\\": "src/"
+        }
+    },
+    "require": {
+        "cboden/ratchet": "^0.4.4"
+    }
+}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.4131778,35.6843194]},"properties":{"id":221320005,"name":"日野橋水位観測所","name_kana":"","ofc_cd":83,"sys_id":2,"sys_cam_id":"13010014","pause":0,"date_type":0,"cam_kind":2,"own_cd":21320}}]}

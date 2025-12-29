@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.457686,35.430214]},"properties":{"id":103585076,"name":"引地川　福寿橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"3585076","pause":0,"date_type":2,"cam_kind":4,"own_cd":3585}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.699722,35.255]},"properties":{"id":221811075,"name":"祖父江","name_kana":"そぶえ","ofc_cd":85,"sys_id":2,"sys_cam_id":"21811019","pause":0,"date_type":0,"cam_kind":2,"own_cd":21811}}]}

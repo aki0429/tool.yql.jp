@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.81191,34.37065]},"properties":{"id":106145046,"name":"前川(稲葉橋下流側)","name_kana":"まえかわ(いなばばしかりゅうがわ)","ofc_cd":85,"sys_id":1,"sys_cam_id":"6145046","pause":0,"date_type":2,"cam_kind":4,"own_cd":6145}}]}

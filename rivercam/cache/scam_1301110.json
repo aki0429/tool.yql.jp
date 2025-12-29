@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.693419444,35.649111111]},"properties":{"id":303329015,"name":"青葉台","name_kana":"","ofc_cd":13,"sys_id":3,"sys_cam_id":"3329015","pause":0,"date_type":0,"cam_kind":2,"own_cd":3329}}]}

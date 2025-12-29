@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.96366,37.569766]},"properties":{"id":101793213,"name":"大谷川（流橋）","name_kana":"おおやかわ（ながればし）","ofc_cd":82,"sys_id":1,"sys_cam_id":"1793213","pause":0,"date_type":1,"cam_kind":4,"own_cd":1793}}]}

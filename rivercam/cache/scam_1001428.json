@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.941944,36.621111]},"properties":{"id":102561084,"name":"名久田川１２．３ｋ役原川合流点","name_kana":"なくたがわ１２．３ｋやくばらがわごうりゅうてん","ofc_cd":83,"sys_id":1,"sys_cam_id":"2561084","pause":0,"date_type":1,"cam_kind":4,"own_cd":2561}}]}

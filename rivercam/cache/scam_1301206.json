@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.47794,35.65402]},"properties":{"id":221320039,"name":"大丸用水堰下流","name_kana":"おおまるようすいぜきかりゅう","ofc_cd":83,"sys_id":2,"sys_cam_id":"21320014","pause":0,"date_type":0,"cam_kind":2,"own_cd":21320}}]}

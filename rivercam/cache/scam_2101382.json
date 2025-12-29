@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.637611,35.312194]},"properties":{"id":221811066,"name":"名神揖斐川橋","name_kana":"めいしんいびがわばし","ofc_cd":85,"sys_id":2,"sys_cam_id":"21811010","pause":0,"date_type":0,"cam_kind":2,"own_cd":21811}}]}

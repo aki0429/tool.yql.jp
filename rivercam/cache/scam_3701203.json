@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[133.923238,34.293269]},"properties":{"id":109473015,"name":"若山橋","name_kana":"わかやまばし","ofc_cd":88,"sys_id":1,"sys_cam_id":"9473015","pause":0,"date_type":2,"cam_kind":4,"own_cd":9473}}]}

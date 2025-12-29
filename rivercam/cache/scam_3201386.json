@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[132.6777778,35.1666667]},"properties":{"id":222303010,"name":"志津見ダム左岸上流","name_kana":"","ofc_cd":87,"sys_id":2,"sys_cam_id":"32010018","pause":0,"date_type":0,"cam_kind":2,"own_cd":22303}}]}

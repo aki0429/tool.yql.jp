@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.808061111,42.044722222]},"properties":{"id":100257289,"name":"折戸川  0.4Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257289","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

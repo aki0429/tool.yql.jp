@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[131.0349972,32.8280556]},"properties":{"id":311009022,"name":"白川(南阿蘇村中松合上橋)","name_kana":"","ofc_cd":43,"sys_id":3,"sys_cam_id":"43010121","pause":0,"date_type":1,"cam_kind":2,"own_cd":11009}}]}

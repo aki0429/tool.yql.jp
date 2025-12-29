@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[143.294176667,43.229363889]},"properties":{"id":100257548,"name":"サックシュオルベツ川  20.8Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257548","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

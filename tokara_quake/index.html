@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トカラ列島可視化</title>
+    
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 1rem; }
+        h1, h2 { text-align: center; color: #1c1e21; margin-top: 0; margin-bottom: 1rem; }
+        h3 { text-align: center; color: #555; font-weight: normal; }
+        .dashboard { display: flex; flex-wrap: wrap; gap: 1rem; }
+        .column { display: flex; flex-direction: column; gap: 1rem; }
+        .left-column { flex: 2; min-width: 600px; }
+        .right-column { flex: 1; min-width: 400px; }
+        .card { background-color: #ffffff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        
+        .timetable-container { max-height: 800px; overflow-y: auto; padding-top: 0; }
+        .hour-group h3 {
+            background-color: #f8f9fa; padding: 0.75rem 1.5rem; margin: 0 -1.5rem 1rem -1.5rem;
+            border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10;
+        }
+        .tile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 0.75rem;
+        }
+        .quake-tile {
+            border-radius: 6px; padding: 0.5rem; color: white;
+            text-align: center; aspect-ratio: 1 / 1;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: default;
+        }
+        .shindo-1 { background-color: #7f8c8d; } .shindo-2 { background-color: #2980b9; }
+        .shindo-3 { background-color: #27ae60; } .shindo-4 { background-color: #f1c40f; color: #333; }
+        .shindo-5 { background-color: #e67e22; } .shindo-6 { background-color: #d35400; }
+        .shindo-7 { background-color: #c0392b; }
+
+        .tile-minute { font-size: 2em; font-weight: bold; line-height: 1.1; }
+        .tile-shindo-text { font-size: 0.75em; opacity: 0.9; }
+
+        .prefecture { fill: #e9ecef; stroke: #adb5bd; stroke-width: 0.5px; }
+        .slider-container { margin-top: 1rem; text-align: center; }
+        #timeSlider { width: 100%; }
+        #timeLabel { font-weight: bold; font-size: 0.9em; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>トカラ列島可視化</h1>
+    <h3 id="data-date-info">データを読み込んでいます...</h3>
+    
+    <div class="dashboard">
+        <div class="column left-column">
+            <div class="card">
+                <h2>最大震度グラフ</h2>
+                <canvas id="shindoChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>累計発生回数グラフ（過去との比較）</h2>
+                <canvas id="cumulativeChart"></canvas>
+            </div>
+            <div class="card timetable-container">
+                <h2>地震発生タイムライン</h2>
+                <div id="quakeTimetable"></div>
+            </div>
+        </div>
+        <div class="column right-column">
+            <div class="card">
+                <h2>地震発生マップ</h2>
+                <svg id="map" width="100%" height="500"></svg>
+                <div class="slider-container">
+                    <input type="range" id="timeSlider" min="0" value="0">
+                    <div id="timeLabel">スライダーを動かしてください</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CSV_FILE_PATH = './quake.csv';
+        const GEOJSON_FILE_PATH = './japan.geojson';
+        const JMA_JSON_URL = 'https://www.jma.go.jp/bosai/quake/data/list.json';
+        
+        const PAST_DATA_CONFIGS = [
+            { path: './tokara_202309.csv', label: '2023年 09月 トカラ列島群発地震', color: '#6ab04c' },
+            { path: './tokara_202112.csv', label: '2021年 12月 トカラ列島群発地震', color: '#f0932b' },
+            { path: './tokara_202104.csv', label: '2021年 04月 トカラ列島群発地震', color: '#be2edd' },
+        ];
+
+        window.addEventListener('DOMContentLoaded', main);
+
+        async function main() {
+            try {
+                const [quakeCsvResult, japanGeo, ...pastCsvResults] = await Promise.all([
+                    loadCSV(CSV_FILE_PATH),
+                    d3.json(GEOJSON_FILE_PATH),
+                    ...PAST_DATA_CONFIGS.map(config => loadCSV(config.path))
+                ]);
+
+                const processedCsvData = processCsvData(quakeCsvResult.data);
+                let lastDateFromCsv = null;
+                if (processedCsvData.length > 0) {
+                    lastDateFromCsv = processedCsvData[processedCsvData.length - 1].date;
+                }
+
+                const jmaJson = await fetch(JMA_JSON_URL)
+                    .then(res => res.ok ? res.json() : [])
+                    .catch(err => {
+                        console.warn("JMA JSONの取得に失敗しました。ローカルデータのみ表示します。", err);
+                        return [];
+                    });
+
+                const dataFromJma = processJmaData(jmaJson);
+                let newQuakes = [];
+                if (lastDateFromCsv) {
+                    newQuakes = dataFromJma.filter(d => d.date > lastDateFromCsv);
+                } else {
+                    newQuakes = dataFromJma;
+                }
+
+                const processedData = [...processedCsvData, ...newQuakes];
+                processedData.sort((a, b) => a.date - b.date);
+
+                const processedPastData = pastCsvResults.map(res => processCsvData(res.data));
+
+                initializeCharts(processedData, processedPastData);
+                populateTimetable(processedData);
+                initializeMap(processedData, japanGeo);
+
+                const latestDate = processedData.length > 0 ? processedData[processedData.length - 1].date : new Date();
+                document.getElementById('data-date-info').textContent = `データ最終更新: ${latestDate.toLocaleString('ja-JP')}`;
+
+            } catch (error) { 
+                console.error("初期化に失敗:", error); 
+                document.body.innerHTML = `<h1>エラー</h1><p>${error.message}</p><p>ローカルファイル(CSV, GeoJSON)の読み込みに失敗した可能性があります。ファイルパスやファイル名を確認してください。</p>`; 
+            }
+        }
+
+        function loadCSV(url) { return new Promise((resolve, reject) => Papa.parse(url, { download: true, header: true, skipEmptyLines: true, complete: resolve, error: reject })); }
+        function toHalfWidth(str) { if (!str) return ""; return str.replace(/[Ａ-Ｚａ-ｚ０-９．]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)); }
+        
+        function processCsvData(data) {
+            const processed = data.map(row => {
+                const shindoStr = toHalfWidth(row['最大震度'] || "");
+                const shindoDisplayText = shindoStr.replace('弱', '-').replace('強', '+');
+                const match = shindoStr.match(/[\d\.]+/);
+                let shindoValue = match ? Number(match[0]) : null;
+                if (shindoValue !== null) {
+                    if (shindoStr.includes('強')) {
+                        shindoValue += 0.25;
+                    } else if (shindoStr.includes('弱')) {
+                        shindoValue -= 0.25;
+                    }
+                }
+                const dateStr = toHalfWidth(row['地震の発生日']?.trim());
+                const timeStr = toHalfWidth(row['地震の発生時刻']?.trim());
+                const isoDateTimeString = `${dateStr.replace(/\//g, '-')}T${timeStr}`;
+                const dateObject = new Date(isoDateTimeString);
+                return { ...row, date: dateObject, shindo: shindoValue, shindoDisplay: shindoDisplayText };
+            }).filter(d => d.date.getTime() && d.shindo !== null);
+            processed.sort((a, b) => a.date - b.date);
+            return processed;
+        }
+
+        function processJmaData(jmaJson) {
+            if (!Array.isArray(jmaJson)) return [];
+            const processed = jmaJson
+                .filter(q => q.anm && q.anm.includes('トカラ'))
+                .map(q => {
+                    const shindoStr = String(q.maxi || "");
+                    let shindoValue = q.maxi ? parseInt(q.maxi, 10) : null;
+                    if (shindoValue !== null) {
+                        if (shindoStr.includes('+')) {
+                            shindoValue += 0.25;
+                        } else if (shindoStr.includes('-')) {
+                            shindoValue -= 0.25;
+                        }
+                    }
+                    const date = new Date(q.at);
+                    let lat = NaN; let lon = NaN;
+                    const coordMatch = q.cod ? q.cod.match(/([+-][\d\.]+)([+-][\d\.]+)/) : null;
+                    if (coordMatch) {
+                        lat = parseFloat(coordMatch[1]);
+                        lon = parseFloat(coordMatch[2]);
+                    }
+                    return {
+                        date: date, shindo: shindoValue, shindoDisplay: shindoStr.replace('弱','-').replace('強','+'),
+                        '緯度': lat, '経度': lon, 'Ｍ': q.mag, '震央地名': q.anm,
+                        '最大震度': shindoStr, '地震の発生日': date.toLocaleDateString(), '地震の発生時刻': date.toLocaleTimeString(),
+                    };
+                })
+                .filter(d => d.date.getTime() && d.shindo !== null);
+            processed.sort((a, b) => a.date - b.date);
+            return processed;
+        }
+
+        function initializeCharts(processedData, processedPastData) {
+            const shindoData = processedData.map(d => ({ x: d.date, y: d.shindo }));
+            new Chart(document.getElementById('shindoChart').getContext('2d'), {
+                type: 'line',
+                data: { datasets: [{ label: '最大震度', data: shindoData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.2)', pointRadius: 2, fill: true }] },
+                options: {
+                    scales: { 
+                        x: { type: 'time', time: { unit: 'day' } }, 
+                        y: { title: { display: true, text: '最大震度' }, min: 0, max: 7 } 
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    const dataIndex = tooltipItem.dataIndex;
+                                    const point = processedData[dataIndex];
+                                    if (point) {
+                                        return `震度: ${point.shindoDisplay} (${point['震央地名']})`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const cumulativeDatasets = [];
+            if (processedData.length > 0) {
+                 const firstDateCurrent = processedData[0].date;
+                 const cumulativeDataCurrent = processedData.map((d, index) => ({ x: (d.date.getTime() - firstDateCurrent.getTime()) / (1000 * 60 * 60 * 24), y: index + 1 }));
+                 const totalCountCurrent = cumulativeDataCurrent.length > 0 ? cumulativeDataCurrent[cumulativeDataCurrent.length - 1].y : 0;
+                 cumulativeDatasets.push({ label: `今回の地震活動 (計: ${totalCountCurrent}回)`, data: cumulativeDataCurrent, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', stepped: true, pointRadius: 0, fill: true });
+            }
+
+            processedPastData.forEach((data, index) => {
+                if (data.length > 0) {
+                    const firstDatePast = data[0].date;
+                    const cumulativeDataPast = data.map((d, i) => ({ x: (d.date.getTime() - firstDatePast.getTime()) / (1000 * 60 * 60 * 24), y: i + 1 }));
+                    const totalCountPast = cumulativeDataPast.length > 0 ? cumulativeDataPast[cumulativeDataPast.length - 1].y : 0;
+                    cumulativeDatasets.push({ label: `${PAST_DATA_CONFIGS[index].label} (計: ${totalCountPast}回)`, data: cumulativeDataPast, borderColor: PAST_DATA_CONFIGS[index].color, stepped: true, pointRadius: 0, fill: false, borderDash: [5, 5] });
+                }
+            });
+
+            new Chart(document.getElementById('cumulativeChart').getContext('2d'), {
+                type: 'line',
+                data: { datasets: cumulativeDatasets },
+                options: { scales: { x: { type: 'linear', title: { display: true, text: '最初の地震からの経過日数' } }, y: { title: { display: true, text: '累計回数 (回)' }, min: 0 } } }
+            });
+        }
+        
+        // --- ★★★ 変更箇所: 抜け落ちていた `const tile = ...` の行を修正 ★★★ ---
+        function populateTimetable(processedData) {
+            const container = document.getElementById("quakeTimetable"); container.innerHTML = "";
+            const groupedByHour = processedData.reduce((acc, quake) => {
+                const date = quake.date;
+                const key = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${date.getHours()}時`;
+                if (!acc[key]) acc[key] = []; acc[key].push(quake);
+                return acc;
+            }, {});
+            const sortedHours = Object.keys(groupedByHour).sort((a,b) => new Date(b.split(' ')[0] + ' ' + b.split(' ')[1].replace('時','')+':00') - new Date(a.split(' ')[0] + ' ' + a.split(' ')[1].replace('時','')+':00'));
+            sortedHours.forEach(hourKey => {
+                const hourGroup = document.createElement("div"); hourGroup.className = "hour-group";
+                const header = document.createElement("h3"); header.textContent = `${hourKey}台`; hourGroup.appendChild(header);
+                const tileGrid = document.createElement("div"); tileGrid.className = "tile-grid";
+                const quakesInHour = groupedByHour[hourKey].sort((a,b) => b.date - a.date);
+                quakesInHour.forEach(quake => {
+                    // この行が抜けていたのを修正しました
+                    const tile = document.createElement("div"); 
+                    const shindoLevel = Math.floor(quake.shindo);
+                    tile.className = `quake-tile shindo-${shindoLevel}`;
+                    tile.title = `発生時刻: ${quake.date.toLocaleTimeString('ja-JP')}\n震央地名: ${quake['震央地名']}\n震度: ${quake.shindoDisplay}`;
+                    const minutes = String(quake.date.getMinutes()).padStart(2, '0');
+                    tile.innerHTML = `<span class="tile-minute">${minutes}</span><span class="tile-shindo-text">震度 ${quake.shindoDisplay}</span>`;
+                    tileGrid.appendChild(tile);
+                });
+                hourGroup.appendChild(tileGrid); container.appendChild(hourGroup);
+            });
+        }
+
+        function initializeMap(processedData, japanGeo) {
+            const svg = d3.select("#map");
+            const width = svg.node().getBoundingClientRect().width;
+            const height = +svg.attr("height");
+            const centerLon = 129.08911; const centerLat = 29.35824; const zoomLevel = 6;
+            const scale = (512 / (2 * Math.PI)) * Math.pow(2, zoomLevel);
+            const projection = d3.geoMercator().center([centerLon, centerLat]).scale(scale).translate([width / 2, height / 2]);
+            const path = d3.geoPath().projection(projection);
+            svg.selectAll("path").data(japanGeo.features).enter().append("path").attr("d", path).attr("class", "prefecture");
+            const slider = document.getElementById('timeSlider');
+            slider.max = processedData.length > 0 ? processedData.length - 1 : 0;
+            slider.addEventListener('input', (event) => { if(processedData.length > 0) updateMap(svg, projection, processedData, event.target.value); });
+            if(processedData.length > 0) updateMap(svg, projection, processedData, 0);
+        }
+        
+        function updateMap(svg, projection, processedData, index) {
+            const timeLabel = document.getElementById('timeLabel');
+            const currentQuake = processedData[index];
+            if (!currentQuake) return;
+            timeLabel.textContent = currentQuake.date.toLocaleString('ja-JP');
+            svg.selectAll(".quake-animation").remove();
+            function parseCoord(coordStr) {
+                if (typeof coordStr === 'number') return coordStr; if (!coordStr) return NaN;
+                const dmsStr = toHalfWidth(String(coordStr));
+                const parts = dmsStr.match(/(\d+)[°|度]([\d\.]+)[′|'|分]/);
+                if (parts) { return parseFloat(parts[1]) + parseFloat(parts[2]) / 60; }
+                return parseFloat(dmsStr);
+            }
+            const lat = parseCoord(currentQuake['緯度']);
+            const lon = parseCoord(currentQuake['経度']);
+            const magnitude = parseFloat(toHalfWidth(String(currentQuake['Ｍ']))) || 3;
+            if (!isNaN(lat) && !isNaN(lon)) {
+                const [x, y] = projection([lon, lat]);
+                const maxRadius = Math.pow(magnitude, 1.8);
+                svg.append("circle").attr("class", "quake-animation").attr("cx", x).attr("cy", y).attr("r", 2).style("stroke", "red").style("stroke-opacity", 1).style("fill", "red").style("fill-opacity", 0.5).transition().duration(2000).attr("r", maxRadius).style("stroke-opacity", 0).style("fill-opacity", 0).remove();
+            }
+        }
+    </script>
+</body>
+</html>

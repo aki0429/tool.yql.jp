@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[141.347519,40.44418]},"properties":{"id":221013023,"name":"剣吉","name_kana":"けんよし","ofc_cd":82,"sys_id":2,"sys_cam_id":"21013027","pause":0,"date_type":0,"cam_kind":2,"own_cd":21013}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[133.002564,34.646475]},"properties":{"id":108705154,"name":"戸張川/世羅郡世羅町安田　木梨橋付近","name_kana":"とばりがわ/せらぐんせらちょうやすだ　きなしばしふきん","ofc_cd":87,"sys_id":1,"sys_cam_id":"8705154","pause":0,"date_type":2,"cam_kind":4,"own_cd":8705}}]}

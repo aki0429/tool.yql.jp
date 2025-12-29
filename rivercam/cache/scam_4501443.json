@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[131.1961389,32.6830278]},"properties":{"id":311531009,"name":"貫原橋","name_kana":"","ofc_cd":45,"sys_id":3,"sys_cam_id":"45010049","pause":0,"date_type":1,"cam_kind":2,"own_cd":11531}}]}

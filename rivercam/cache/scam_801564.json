@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.1293944,35.8708694]},"properties":{"id":221269012,"name":"利根川押付〈茨城県利根町）","name_kana":"","ofc_cd":83,"sys_id":2,"sys_cam_id":"8010012","pause":0,"date_type":0,"cam_kind":2,"own_cd":21269}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.3802778,31.3805556]},"properties":{"id":311777007,"name":"大渡橋","name_kana":"","ofc_cd":46,"sys_id":3,"sys_cam_id":"46010043","pause":0,"date_type":1,"cam_kind":2,"own_cd":11777}}]}

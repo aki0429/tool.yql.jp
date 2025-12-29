@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.225861111,35.970580555]},"properties":{"id":102049052,"name":"塙橋","name_kana":"はなわはし","ofc_cd":83,"sys_id":1,"sys_cam_id":"2049052","pause":0,"date_type":1,"cam_kind":4,"own_cd":2049}}]}

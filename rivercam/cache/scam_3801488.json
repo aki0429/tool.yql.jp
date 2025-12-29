@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[132.7208333,33.2780556]},"properties":{"id":309729031,"name":"広見川（小倉）／県","name_kana":"","ofc_cd":38,"sys_id":3,"sys_cam_id":"38010119","pause":0,"date_type":1,"cam_kind":2,"own_cd":9729}}]}

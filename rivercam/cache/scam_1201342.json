@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.407575,35.9063972]},"properties":{"id":221269006,"name":"利根川　川端（千葉県神崎町）","name_kana":"","ofc_cd":83,"sys_id":2,"sys_cam_id":"12010017","pause":0,"date_type":0,"cam_kind":2,"own_cd":21269}}]}

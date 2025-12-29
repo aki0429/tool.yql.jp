@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>津波監視システム (1秒更新・右クリックデバッグ対応)</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- ============================================================
+         ヘッダー情報ボックス
+    ============================================================ -->
+    <!--
+    <div class="header-info">
+        <div class="header-title">津波警報・注意報・予報</div>
+        <div class="header-time" id="header-time">--- --:-- 現在</div>
+        <div class="headline-text" id="headline-text">（最新情報を取得中…）</div>
+        <div class="monitor-status" id="monitor-msg">Starting…</div>
+    </div> 
+    -->
+
+    <!-- ============================================================
+         メイン地図
+    ============================================================ -->
+    <div id="map-main" class="map-base"></div>
+
+    <!-- ============================================================
+         沖縄インセット
+    ============================================================ -->
+    <div id="inset-okinawa" class="inset-container">
+        <div class="inset-label">沖縄</div>
+        <div id="map-okinawa"></div>
+    </div>
+
+    <!-- ============================================================
+         小笠原インセット
+    ============================================================ -->
+    <div id="inset-ogasawara" class="inset-container">
+        <div class="inset-label">小笠原</div>
+        <div id="map-ogasawara"></div>
+    </div>
+
+    <!-- ============================================================
+         凡例（動的に表示）
+    ============================================================ -->
+    <div id="legend" class="legend" style="display: none;">
+        <div id="legend-daitsunami" class="legend-item" style="display: none;"><div class="color-box c-purple"></div>大津波警報</div>
+        <div id="legend-tsunami" class="legend-item" style="display: none;"><div class="color-box c-red"></div>津波警報</div>
+        <div id="legend-tyuui" class="legend-item" style="display: none;"><div class="color-box c-yellow"></div>津波注意報</div>
+        <div id="legend-yosoku" class="legend-item" style="display: none;"><div class="color-box c-blue"></div>若干の海面変動</div>
+    </div>
+
+    <!-- ============================================================
+         ▼ 右クリックメニュー（非表示）
+         ※ 見える形ではなく右クリック→選択する形
+    ============================================================ -->
+    <ul id="debug-menu">
+        <li id="menu-load-test">デバッグ：test.json を読み込む</li>
+        <li id="menu-exit-test">テストモード解除</li>
+        <li id="menu-clear">警報表示をクリア</li>
+    </ul>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Custom Script -->
+    <script src="script.js"></script>
+
+</body>
+</html>

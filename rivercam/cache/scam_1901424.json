@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.84662,35.462986]},"properties":{"id":104865042,"name":"新名庄川　鶴ヶ池橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"4865042","pause":0,"date_type":2,"cam_kind":4,"own_cd":4865}}]}

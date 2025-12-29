@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アメダス気温統計</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>アメダス気温統計</h1>
+        <div class="season-toggle">
+            <button id="summerBtn" class="active">夏季統計</button>
+            <button id="winterBtn">冬季統計</button>
+        </div>
+        
+        <div id="summerStats" class="stats-container">
+            <div class="stat-card">
+                <h3>猛暑日</h3>
+                <p class="count" id="extremeHotCount">-</p>
+                <p class="description">最高気温が35℃以上</p>
+            </div>
+            <div class="stat-card">
+                <h3>真夏日</h3>
+                <p class="count" id="veryHotCount">-</p>
+                <p class="description">最高気温が30℃以上</p>
+            </div>
+            <div class="stat-card">
+                <h3>夏日</h3>
+                <p class="count" id="hotCount">-</p>
+                <p class="description">最高気温が25℃以上</p>
+            </div>
+        </div>
+
+        <div id="winterStats" class="stats-container hidden">
+            <div class="stat-card">
+                <h3>真冬日</h3>
+                <p class="count" id="extremeColdCount">-</p>
+                <p class="description">最高気温が0℃未満</p>
+            </div>
+            <div class="stat-card">
+                <h3>冬日</h3>
+                <p class="count" id="coldCount">-</p>
+                <p class="description">最低気温が0℃未満</p>
+            </div>
+        </div>
+
+        <div class="update-info">
+            <p>最終更新: <span id="lastUpdate">-</span></p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

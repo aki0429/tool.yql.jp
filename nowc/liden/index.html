@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高解像度ナウキャスト on 衛星画像 (2D版)</title>
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { width: 100vw; height: 100vh; background-color: #333; }
+        #controls-wrapper {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: auto;
+        }
+        #timeline-controls, #main-controls {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        #timeline-container { position: relative; width: 400px; }
+        #timeSlider { width: 100%; margin: 0; }
+        #playPauseBtn { font-size: 16px; padding: 5px 10px; cursor: pointer; width: 80px; }
+        #speedSlider { width: 120px; }
+        #timeDisplay { font-size: 14px; font-weight: bold; min-width: 170px; text-align: center; }
+        #coordsDisplay { font-size: 14px; padding: 5px 10px; min-width: 230px; }
+
+        @media (max-width: 768px) {
+            #controls-wrapper { width: 95%; bottom: 10px; }
+            #timeline-controls, #main-controls { width: 100%; box-sizing: border-box; flex-wrap: wrap; justify-content: center; padding: 8px; gap: 8px; }
+            #timeline-container { width: 100%; }
+            #coordsDisplay { width: 100%; text-align: center; order: -1; margin-bottom: 5px; min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div id="controls-wrapper">
+        <div id="timeline-controls">
+            <div id="timeline-container">
+                <input type="range" id="timeSlider" value="0">
+            </div>
+        </div>
+        <div id="main-controls">
+            <div id="coordsDisplay">緯度: --.---- 経度: ---.----</div>
+            <button id="playPauseBtn">再生</button>
+            <input type="range" id="speedSlider" min="100" max="2000" value="500" step="100">
+            <div id="timeDisplay">--/-- --:--</div>
+        </div>
+    </div>
+
+<script>
+    // --- Global Variables ---
+    let map;
+    let nowcastFrames = [];
+    let layerCache = {}; // 作成したレイヤーをキャッシュするオブジェクト
+    let currentFrameIndex = 0;
+    let isPlaying = false;
+    let animationInterval;
+    let animationStarted = false;
+    let hashUpdateScheduled = false;
+    let baseTime;
+
+    // --- UI Elements ---
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const speedSlider = document.getElementById('speedSlider');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const coordsDisplay = document.getElementById('coordsDisplay');
+    
+    // --- Initialization ---
+    // カスタムGridLayer: 気象庁タイルは偶数ズームのみ高解像度で提供されることがあるため
+    // 奇数ズーム時は (z+1) の4枚のタイルを結合して1タイルを生成する
+    function createJmaGridLayer(urlTemplate, options = {}) {
+        const Grid = L.GridLayer.extend({
+            initialize: function(opts) {
+                L.GridLayer.prototype.initialize.call(this, opts);
+                this._urlTemplate = urlTemplate;
+            },
+            getTileUrlFor: function(z, x, y) {
+                return L.Util.template(this._urlTemplate, {z: z, x: x, y: y});
+            },
+            createTile: function(coords, done) {
+                const tileSize = this.getTileSize();
+                const z = coords.z;
+
+                // even zoom: 単一の <img> を返す
+                if (z % 2 === 0) {
+                    const img = L.DomUtil.create('img', 'leaflet-tile');
+                    img.width = tileSize.x;
+                    img.height = tileSize.y;
+                    // クロスオリジン属性は付けない（表示のみでピクセルアクセスしない）
+                    img.onload = function() { done(null, img); };
+                    img.onerror = function() { done(null, img); };
+                    img.src = this.getTileUrlFor(z, coords.x, coords.y);
+                    return img;
+                }
+
+                // odd zoom: 4つの <img> を入れた div を返す
+                const z2 = z + 1;
+                const x2 = coords.x * 2;
+                const y2 = coords.y * 2;
+                const container = L.DomUtil.create('div', 'leaflet-tile');
+                container.style.position = 'relative';
+                container.style.width = tileSize.x + 'px';
+                container.style.height = tileSize.y + 'px';
+
+                const quad = [
+                    {x: x2,     y: y2,     left: '0%',   top: '0%'},
+                    {x: x2 + 1, y: y2,     left: '50%',  top: '0%'},
+                    {x: x2,     y: y2 + 1, left: '0%',   top: '50%'},
+                    {x: x2 + 1, y: y2 + 1, left: '50%',  top: '50%'}
+                ];
+
+                let remaining = 0;
+                quad.forEach(q => {
+                    // 範囲チェック
+                    const maxIndex = Math.pow(2, z2);
+                    if (q.x < 0 || q.y < 0 || q.x >= maxIndex || q.y >= maxIndex) return;
+                    remaining++;
+                    const img = L.DomUtil.create('img', 'leaflet-tile-quad');
+                    img.style.position = 'absolute';
+                    img.style.left = q.left;
+                    img.style.top = q.top;
+                    img.style.width = '50%';
+                    img.style.height = '50%';
+                    img.onload = img.onerror = function() {
+                        remaining--;
+                        if (remaining <= 0) done(null, container);
+                    };
+                    img.src = this.getTileUrlFor(z2, q.x, q.y);
+                    container.appendChild(img);
+                });
+
+                // もし有効なタイルが一つも無ければ即時完了
+                if (remaining === 0) done(null, container);
+                return container;
+            }
+        });
+
+        return new Grid(Object.assign({ tileSize: 256 }, options));
+    }
+
+    initializeMap();
+    setupEventListeners();
+
+    // 1. Initialize Map
+    function initializeMap() {
+        let view = [34.6468, 137.3401];
+        let zoom = 7;
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const parts = hash.split('/');
+            // 2Dなので緯度/経度/ズームのみ
+            if (parts.length === 3) {
+                zoom = parseFloat(parts[0]);
+                view = [parseFloat(parts[1]), parseFloat(parts[2])];
+            }
+        }
+        map = L.map('map', {
+            minZoom: 4,
+            maxZoom: 14,
+            zoom: Math.round(zoom), // 整数値のズームレベルを確保
+            center: view,
+            zoomSnap: 1,
+            zoomDelta: 1,
+            wheelPxPerZoomLevel: 120 // ズーム操作の感度調整
+        });
+        setupBaseMap();
+    }
+
+    // 2. Set up base map layers
+    function setupBaseMap() {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        // 日本全体の境界線
+        fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson')
+            .then(response => response.json())
+            .then(geojson => {
+                L.geoJSON(geojson, {
+                    style: { fill: false, stroke: true, color: 'white', weight: 1.5 }
+                }).addTo(map);
+                prepareNowcastFrames();
+            });
+
+        // 市町村境界データ（ローカルファイル）
+            fetch('N03-21_210101.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    geojsonLayer = L.geoJSON(data, {
+                        style: {
+                            color: 'red',
+                            weight: 3,
+                            fillOpacity: 0
+                        },
+                        onEachFeature: function (feature, layer) {
+                            // 市区町村名プロパティを推定して表示
+                            let props = feature.properties;
+                            let name = props.N03_004 || props.N03_003 || props.N03_001 || props.N03_002 || null;
+                            if (!name) {
+                                // 主要なプロパティがなければ全プロパティを列挙
+                                name = Object.values(props).join('<br>');
+                            }
+                            layer.bindPopup(name);
+                            layer.on('click', function(e) {
+                                layer.openPopup();
+                            });
+                        }
+                    }).addTo(map);
+                });
+    }
+
+    // 3. Prepare Weather Radar Frames (without creating layers yet)
+    async function prepareNowcastFrames() {
+        try {
+            // Fetch available data from JMA API
+            const response = await fetch('https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N3.json');
+            const data = await response.json();
+            
+            if (!data || data.length === 0) {
+                throw new Error('No data available from JMA API');
+            }
+
+            // Find latest basetime with "thns" element
+            let latestData = data.find(item => 
+                item.elements.includes('thns') && 
+                item.basetime === item.validtime
+            );
+
+            if (!latestData) {
+                throw new Error('No valid data found');
+            }
+
+            // Parse basetime
+            baseTime = new Date(
+                parseInt(latestData.basetime.substring(0,4)),
+                parseInt(latestData.basetime.substring(4,6)) - 1,
+                parseInt(latestData.basetime.substring(6,8)),
+                parseInt(latestData.basetime.substring(8,10)),
+                parseInt(latestData.basetime.substring(10,12))
+            );
+
+            // Get all frames with "thns" element
+            const validFrames = data.filter(item => item.elements.includes('thns'));
+            
+            validFrames.forEach(frame => {
+                const frameTime = new Date(
+                    parseInt(frame.validtime.substring(0,4)),
+                    parseInt(frame.validtime.substring(4,6)) - 1,
+                    parseInt(frame.validtime.substring(6,8)),
+                    parseInt(frame.validtime.substring(8,10)),
+                    parseInt(frame.validtime.substring(10,12))
+                );
+
+                // 気象庁タイル用にURLを調整
+                const nowcastTileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${frame.basetime}/none/${frame.validtime}/surf/thns/{z}/{x}/{y}.png`;
+                
+                nowcastFrames.push({
+                    id: `nowcast-${frame.validtime}`,
+                    date: frameTime,
+                    url: nowcastTileUrl,
+                    options: {
+                        bounds: [[20, 118], [50, 150]], // 日本周辺の領域
+                        tms: false // 標準的なタイル座標系を使用
+                    }
+                });
+            });
+
+            // Sort frames by time
+            nowcastFrames.sort((a, b) => a.date - b.date);
+            
+            timeSlider.max = nowcastFrames.length - 1;
+            const currentIndex = nowcastFrames.findIndex(frame => 
+                frame.date.getTime() === baseTime.getTime()
+            );
+            timeSlider.value = currentIndex;
+            updateFrame(currentIndex);
+            
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
+    // 4. Display the Specified Radar Frame (Lazy Load + Cache)
+    function updateFrame(frameIndex) {
+        // 前のフレームを削除
+        if (layerCache[nowcastFrames[currentFrameIndex].id]) {
+            map.removeLayer(layerCache[nowcastFrames[currentFrameIndex].id]);
+        }
+        
+        currentFrameIndex = frameIndex;
+        const frameData = nowcastFrames[currentFrameIndex];
+
+        if (frameData) {
+            // もしレイヤーがキャッシュにあれば、それを使う
+            if (layerCache[frameData.id]) {
+                map.addLayer(layerCache[frameData.id]);
+            } else {
+                // なければ新しく作成してキャッシュに保存
+                const zoom = map.getZoom();
+                let newLayer;
+                // ズーム9以上はmaxNativeZoom:8でズーム8のタイルを拡大表示
+                const effectiveMaxNativeZoom = zoom >= 9 ? 8 : 14;
+                if (zoom % 2 === 1) {
+                    newLayer = createJmaGridLayer(frameData.url, Object.assign({
+                        attribution: '高解像度降水ナウキャスト (C)気象庁',
+                        maxNativeZoom: effectiveMaxNativeZoom,
+                        tileSize: 256,
+                        noWrap: true
+                    }, frameData.options || {}));
+                } else {
+                    const layerOptions = {
+                        opacity: 0.8,
+                        attribution: '高解像度降水ナウキャスト (C)気象庁',
+                        maxNativeZoom: effectiveMaxNativeZoom,
+                        tileSize: 256,
+                        zoomOffset: 0,
+                        noWrap: true,
+                        minZoom: 4,
+                        maxZoom: 14,
+                        ...frameData.options
+                    };
+                    newLayer = L.tileLayer(frameData.url, layerOptions);
+                }
+
+                layerCache[frameData.id] = newLayer;
+                map.addLayer(newLayer);
+            }
+
+            // UIの更新
+            const jstDate = new Date(frameData.date.getTime() + 9 * 2 * 60 * 60 * 1000);
+            const jstString = formatJst(jstDate);
+            let timeLabel = "(JST)";
+            if (frameData.date.getTime() < baseTime.getTime()) { timeLabel = "(JST 過去)"; }
+            else if (frameData.date.getTime() > baseTime.getTime()) { timeLabel = "(JST 予報)"; }
+            else { timeLabel = "(JST 現在)"; }
+            timeDisplay.textContent = `時刻: ${jstString} ${timeLabel}`;
+            timeSlider.value = currentFrameIndex;
+        }
+    }
+
+    // 5. Play/Pause Logic
+    function togglePlay() {
+        if (isPlaying) {
+            clearInterval(animationInterval);
+            isPlaying = false;
+            playPauseBtn.textContent = '再生';
+        } else {
+            if (!animationStarted) { updateFrame(0); animationStarted = true; }
+            isPlaying = true;
+            playPauseBtn.textContent = '一時停止';
+            animationInterval = setInterval(() => {
+                let nextFrame = (currentFrameIndex + 1) % nowcastFrames.length;
+                updateFrame(nextFrame);
+            }, speedSlider.value);
+        }
+    }
+    
+    // 6. Change Playback Speed
+    function changeSpeed() { if (isPlaying) { togglePlay(); togglePlay(); } }
+
+    // 7. Set Up Event Listeners
+    function setupEventListeners() {
+        playPauseBtn.addEventListener('click', togglePlay);
+        speedSlider.addEventListener('input', changeSpeed);
+        timeSlider.addEventListener('input', (e) => {
+            if (isPlaying) { togglePlay(); }
+            updateFrame(parseInt(e.target.value, 10));
+        });
+
+        map.on('mousemove', (e) => {
+            coordsDisplay.textContent = `緯度: ${e.latlng.lat.toFixed(4)} 経度: ${e.latlng.lng.toFixed(4)}`;
+        });
+        map.on('mouseout', () => {
+            coordsDisplay.textContent = '緯度: --.---- 経度: ---.----';
+        });
+
+        map.on('moveend', () => {
+            if (!hashUpdateScheduled) {
+                hashUpdateScheduled = true;
+                setTimeout(() => {
+                    const center = map.getCenter();
+                    const zoom = map.getZoom();
+                    const hash = `#${zoom}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}`;
+                    window.history.replaceState(null, null, hash);
+                    hashUpdateScheduled = false;
+                }, 100);
+            }
+        });
+    }
+
+    // --- Helper Functions ---
+    function formatTimestamp(d) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${y}${m}${day}${h}${min}00`;
+    }
+    function formatJst(d) {
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${m}/${day} ${h}:${min}`;
+    }
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.027906,33.422158]},"properties":{"id":109985025,"name":"小谷橋下流","name_kana":"","ofc_cd":88,"sys_id":1,"sys_cam_id":"9985025","pause":0,"date_type":1,"cam_kind":4,"own_cd":9985}}]}

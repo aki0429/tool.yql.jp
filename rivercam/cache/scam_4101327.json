@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.387825,33.315227777]},"properties":{"id":310497009,"name":"広円橋","name_kana":"","ofc_cd":41,"sys_id":3,"sys_cam_id":"41010042","pause":0,"date_type":1,"cam_kind":2,"own_cd":10497}}]}

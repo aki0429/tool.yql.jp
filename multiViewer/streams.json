@@ -1,0 +1,489 @@
+[
+  {
+    "id": "cam1",
+    "name": "正面カメラ",
+    "type": "cgi",
+    "url": "http://towadako-livecam-01.aa0.netvolante.jp:8080/-wvhttp-01-/image.cgi"
+  },
+{
+        "id":  "soyamisaki_lt",
+        "name":  "宗谷岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/soyamisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "motochi_lt",
+        "name":  "元地灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/motochi_lt-live.m3u8"
+    },
+    {
+        "id":  "chikiumisaki_lt",
+        "name":  "チキウ岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/chikiumisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "erimomisaki_lt",
+        "name":  "襟裳岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/erimomisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "kamomeshima_lt",
+        "name":  "鴎島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kamomeshima_lt-live.m3u8"
+    },
+    {
+        "id":  "kattoshimisaki_lt",
+        "name":  "葛登支岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kattoshimisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "hiyoriyama_lt",
+        "name":  "日和山灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hiyoriyama_lt-live.m3u8"
+    },
+    {
+        "id":  "mashike_lt",
+        "name":  "増毛灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/mashike_lt-live.m3u8"
+    },
+    {
+        "id":  "saromako_entrance_lt",
+        "name":  "サロマ湖口灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/saromako_entrance_lt-live.m3u8"
+    },
+    {
+        "id":  "kushirosaki_lt",
+        "name":  "釧路埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kushirosaki_lt-live.m3u8"
+    },
+    {
+        "id":  "nosappumisaki_lt",
+        "name":  "納沙布岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/nosappumisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "tappisaki_lt",
+        "name":  "龍飛埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/tappisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "shiriyasaki_lt",
+        "name":  "尻屋埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/shiriyasaki_lt-live.m3u8"
+    },
+    {
+        "id":  "hachinohe_ss",
+        "name":  "八戸信号所",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hachinohe_ss-live.m3u8"
+    },
+    {
+        "id":  "akita_cgo",
+        "name":  "秋田海上保安部庁舎",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/akita_cgo-live.m3u8"
+    },
+    {
+        "id":  "ofunatoko_dl",
+        "name":  "大船渡港指向灯",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ofunatoko_dl-live.m3u8"
+    },
+    {
+        "id":  "kinkasan_lt",
+        "name":  "金華山灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kinkasan_lt-live.m3u8"
+    },
+    {
+        "id":  "shioyasaki_lt",
+        "name":  "塩屋埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/shioyasaki_lt-live.m3u8"
+    },
+    {
+        "id":  "sakata_lt",
+        "name":  "酒田灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/sakata_lt-live.m3u8"
+    },
+    {
+        "id":  "isozaki_lt",
+        "name":  "磯埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/isozaki_lt-live.m3u8"
+    },
+    {
+        "id":  "nojimasaki_lt",
+        "name":  "野島埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/nojimasaki_lt-live.m3u8"
+    },
+    {
+        "id":  "honmoku_vtss",
+        "name":  "本牧信号所",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/honmoku_vtss-live.m3u8"
+    },
+    {
+        "id":  "tsurugisaki_lt",
+        "name":  "剱埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/tsurugisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "inubosaki_lt",
+        "name":  "犬吠埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/inubosaki_lt-live.m3u8"
+    },
+    {
+        "id":  "omaesaki_lt",
+        "name":  "御前埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/omaesaki_lt-live.m3u8"
+    },
+    {
+        "id":  "irosaki_lt",
+        "name":  "石廊埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/irosaki_lt-live.m3u8"
+    },
+    {
+        "id":  "hachijosima_lt",
+        "name":  "八丈島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hachijosima_lt-live.m3u8"
+    },
+    {
+        "id":  "kannonsaki_radar",
+        "name":  "観音埼レーダー施設",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kannonsaki_radar-live.m3u8"
+    },
+    {
+        "id":  "hashidahana_lt",
+        "name":  "橋田鼻灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hashidahana_lt-live.m3u8"
+    },
+    {
+        "id":  "owase_cgo",
+        "name":  "尾鷲海上保安部庁舎",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/owase_cgo-live.m3u8"
+    },
+    {
+        "id":  "yokkaichiko_bkw_lt",
+        "name":  "四日市防波堤信号所",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/yokkaichiko_bkw_lt-live.m3u8"
+    },
+    {
+        "id":  "daiosaki_lt",
+        "name":  "大王埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/daiosaki_lt-live.m3u8"
+    },
+    {
+        "id":  "toba_cgo",
+        "name":  "鳥羽海上保安部庁舎",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/toba_cgo-live.m3u8"
+    },
+    {
+        "id":  "isewan_martis_no2",
+        "name":  "伊勢湾海上交通センター(北西)",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/isewan_martis_no2-live.m3u8"
+    },
+    {
+        "id":  "isewan_martis_no1",
+        "name":  "伊勢湾海上交通センター(南西)",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/isewan_martis_no1-live.m3u8"
+    },
+    {
+        "id":  "nagoyako_martis_no2",
+        "name":  "名古屋港海上交通センター(東)",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/nagoyako_martis_no2-live.m3u8"
+    },
+    {
+        "id":  "nagoyako_martis_no1",
+        "name":  "名古屋港海上交通センター(西)",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/nagoyako_martis_no1-live.m3u8"
+    },
+    {
+        "id":  "nagoyako_martis_no3",
+        "name":  "名古屋港ガーデンふ頭",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/nagoyako_martis_no3-live.m3u8"
+    },
+    {
+        "id":  "osaka_lt",
+        "name":  "大阪灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/osaka_lt-live.m3u8"
+    },
+    {
+        "id":  "kobe_no2_ss",
+        "name":  "神戸第二信号所",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kobe_no2_ss-live.m3u8"
+    },
+    {
+        "id":  "shionomisaki_lt",
+        "name":  "潮岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/shionomisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "magosaki_lt",
+        "name":  "孫埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/magosaki_lt-live.m3u8"
+    },
+    {
+        "id":  "kochi_lt",
+        "name":  "高知灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kochi_lt-live.m3u8"
+    },
+    {
+        "id":  "esaki_radar",
+        "name":  "江埼レーダー施設",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/esaki_radar-live.m3u8"
+    },
+    {
+        "id":  "ondonoseto_n_entrance",
+        "name":  "音戸ノ瀬戸北口",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ondonoseto_n_entrance-live.m3u8"
+    },
+    {
+        "id":  "ondonoseto_s_entrance_no1",
+        "name":  "音戸ノ瀬戸南口1",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ondonoseto_s_entrance_no1-live.m3u8"
+    },
+    {
+        "id":  "ondonoseto_s_entrance_no2",
+        "name":  "音戸ノ瀬戸南口2",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ondonoseto_s_entrance_no2-live.m3u8"
+    },
+    {
+        "id":  "sadamisaki_lt",
+        "name":  "佐田岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/sadamisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "bisan_martis",
+        "name":  "備讃瀬戸海上交通センター",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/bisan_martis-live.m3u8"
+    },
+    {
+        "id":  "sekisaki_lt",
+        "name":  "関埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/sekisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "mishima_n_lt",
+        "name":  "見島北灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/mishima_n_lt-live.m3u8"
+    },
+    {
+        "id":  "hinoyamashita_tss",
+        "name":  "火ノ山下潮流信号所",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hinoyamashita_tss-live.m3u8"
+    },
+    {
+        "id":  "miirakunagasakihana_lt",
+        "name":  "三井楽長崎鼻灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/miirakunagasakihana_lt-live.m3u8"
+    },
+    {
+        "id":  "mitsushima_lt",
+        "name":  "三島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/mitsushima_lt-live.m3u8"
+    },
+    {
+        "id":  "tsutsusaki_lt",
+        "name":  "豆酘埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/tsutsusaki_lt-live.m3u8"
+    },
+    {
+        "id":  "wakamiya_lt",
+        "name":  "若宮灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/wakamiya_lt-live.m3u8"
+    },
+    {
+        "id":  "kanmon_martis",
+        "name":  "関門海峡海上交通センター",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kanmon_martis-live.m3u8"
+    },
+    {
+        "id":  "tateishimisaki",
+        "name":  "立石岬",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/tateishimisaki-live.m3u8"
+    },
+    {
+        "id":  "iwamiosakihana_lt",
+        "name":  "石見大崎鼻灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/iwamiosakihana_lt-live.m3u8"
+    },
+    {
+        "id":  "izumohinomisaki_sakaguri_sl",
+        "name":  "出雲日御碕サカグリ照射灯",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/izumohinomisaki_sakaguri_sl-live.m3u8"
+    },
+    {
+        "id":  "mihonoseki_lt",
+        "name":  "美保関灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/mihonoseki_lt-live.m3u8"
+    },
+    {
+        "id":  "kyogamisaki_lt",
+        "name":  "経ケ岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kyogamisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "bakuchimisaki_lt",
+        "name":  "博奕岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/bakuchimisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "fushiki_dl",
+        "name":  "伏木指向灯",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/fushiki_dl-live.m3u8"
+    },
+    {
+        "id":  "sawasakihana_lt",
+        "name":  "沢崎鼻灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/sawasakihana_lt-live.m3u8"
+    },
+    {
+        "id":  "hegurashima_lt",
+        "name":  "舳倉島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hegurashima_lt-live.m3u8"
+    },
+    {
+        "id":  "ono_lt",
+        "name":  "大野灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ono_lt-live.m3u8"
+    },
+    {
+        "id":  "aganokawa_rm_lt",
+        "name":  "阿賀野川口灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/aganokawa_rm_lt-live.m3u8"
+    },
+    {
+        "id":  "toimisaki_lt",
+        "name":  "都井岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/toimisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "satamisaki_lt",
+        "name":  "佐多岬灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/satamisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "tanegashima_lt",
+        "name":  "種子島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/tanegashima_lt-live.m3u8"
+    },
+    {
+        "id":  "kohirasehana_lt",
+        "name":  "小平瀬鼻灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kohirasehana_lt-live.m3u8"
+    },
+    {
+        "id":  "misumi_lt",
+        "name":  "三角灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/misumi_lt-live.m3u8"
+    },
+    {
+        "id":  "kasarisaki_lt",
+        "name":  "笠利埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/kasarisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "11th_rcgh",
+        "name":  "第十一管区海上保安本部庁舎",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/11th_rcgh-live.m3u8"
+    },
+    {
+        "id":  "ryukyukannonsaki_lt",
+        "name":  "琉球観音埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ryukyukannonsaki_lt-live.m3u8"
+    },
+    {
+        "id":  "hennasaki_lt",
+        "name":  "平安名埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/hennasaki_lt-live.m3u8"
+    },
+    {
+        "id":  "irisaki_lt",
+        "name":  "西埼灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/irisaki_lt-live.m3u8"
+    },
+    {
+        "id":  "ikeishima_lt",
+        "name":  "伊計島灯台",
+        "type":  "hls",
+        "url":  "https://camera.mics.kaiho.mlit.go.jp/realmovie/ikeishima_lt-live.m3u8"
+    },
+    {
+        "id":  "youtube1",
+        "name":  "JR本八幡駅北口ライブカメラ",
+        "type":  "youtube",
+        "url":  "https://www.youtube.com/watch?v=bdy6XoCJ3eo"
+    }
+]
+

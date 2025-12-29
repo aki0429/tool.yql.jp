@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>強震モニター リアルタイムマップ</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+     
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        #map { width: 100vw; height: 100vh; z-index: 1; }
+        .ui-panel { z-index: 1000; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #ffffff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+
+    <div id="map"></div>
+
+    <div id="loading-overlay" class="ui-panel fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center flex-col hidden">
+        <div class="spinner"></div>
+        <p class="text-white mt-4 text-lg font-semibold">最新データを取得中...</p>
+    </div>
+    
+    <div id="info-panel" class="ui-panel fixed top-4 left-4 bg-white bg-opacity-80 p-4 rounded-lg shadow-lg max-w-sm">
+        <h1 class="text-xl font-bold text-gray-800">強震モニターマップ</h1>
+        <p class="text-sm text-gray-600 mt-1">防災科学技術研究所(NIED)の情報を表示しています。</p>
+        <div class="mt-2 text-xs text-gray-500">
+            <p>データ時刻: <span id="data-timestamp" class="font-semibold">N/A</span></p>
+            <p>最終更新 (ローカル): <span id="last-updated" class="font-semibold">N/A</span></p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <script>
+        // --- 設定項目 ---
+        const UPDATE_INTERVAL = 5000;
+        
+        // ★★★ 修正: 実行環境を判別し、APIのURLを自動的に切り替える ★★★
+        const PROXY_PROTOCOL = window.location.protocol;
+        const CURRENT_HOST = window.location.hostname;
+        const isProduction = CURRENT_HOST === 'tool.ikunocam.net';
+
+        let API_URL;
+        if (isProduction) {
+            // 本番環境の場合、api.ikunocam.net を直接指定 (ポートなし)
+            API_URL = `${PROXY_PROTOCOL}//api.ikunocam.net/api/station-colors`;
+        } else {
+            // 開発環境 (localhost, 192.168.x.xなど) の場合、現在のホストにポート3000を付与
+            const PROXY_PORT = 3000;
+            API_URL = `${PROXY_PROTOCOL}//${CURRENT_HOST}:${PROXY_PORT}/api/station-colors`;
+        }
+
+        // --- DOM要素 ---
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const lastUpdatedElement = document.getElementById('last-updated');
+        const dataTimestampElement = document.getElementById('data-timestamp');
+        
+        // --- グローバル変数 ---
+        let map;
+        let stationMarkersLayer = L.layerGroup();
+
+        // --- 初期化処理 ---
+        document.addEventListener('DOMContentLoaded', initialize);
+
+        function initialize() {
+            map = L.map('map', { center: [36, 138], zoom: 5, zoomControl: false });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            stationMarkersLayer.addTo(map);
+            
+            updateData();
+            setInterval(updateData, UPDATE_INTERVAL);
+        }
+
+        async function updateData() {
+            loadingOverlay.classList.remove('hidden');
+            try {
+                // サーバーから処理済みのJSONを取得するだけ
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`サーバーエラー: ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
+                }
+                const data = await response.json();
+                
+                updateStationMarkers(data.station_data);
+                dataTimestampElement.textContent = data.timestamp;
+
+            } catch (error) {
+                console.error("データ更新中にエラーが発生しました:", error);
+                dataTimestampElement.innerHTML = `<span class="text-red-600 font-bold">${error.message}</span>`;
+            } finally {
+                lastUpdatedElement.textContent = new Date().toLocaleTimeString('ja-JP');
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function updateStationMarkers(stationDataList) {
+            stationMarkersLayer.clearLayers();
+            if (!stationDataList) return;
+
+            stationDataList.forEach(station => {
+                const lat = station[0];
+                const lon = station[1];
+                const rgb = station[2];
+                const color = `rgb(${rgb.join(',')})`;
+
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 6,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 0.5,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+                stationMarkersLayer.addLayer(marker);
+            });
+        }
+        
+    </script>
+</body>
+</html>

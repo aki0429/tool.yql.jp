@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket テスト</title>
+</head>
+<body>
+  <h1>ローカルWebSocket接続テスト</h1>
+  <p>ブラウザのデベロッパーツール（F12キー）を開いてコンソールを確認してください。</p>
+  <button id="sendMessageBtn">サーバーにメッセージを送信</button>
+
+  <script>
+    // サーバーのポート番号に合わせて変更してください
+    const WEBSOCKET_PORT = 8080;
+    const socket = new WebSocket(`ws://192.168.20.41:${WEBSOCKET_PORT}`);
+
+    // --- イベントハンドラ ---
+    socket.onopen = (event) => {
+      console.log(`✅ ws://localhost:${WEBSOCKET_PORT} に接続しました。`);
+    };
+
+    socket.onmessage = (event) => {
+      console.log('📥 サーバーからのメッセージ:', event.data);
+    };
+
+    socket.onclose = (event) => {
+      console.log('❌ 接続がクローズされました。');
+    };
+
+    socket.onerror = (error) => {
+      console.error('エラーが発生しました:', error);
+    };
+    
+    // --- メッセージ送信 ---
+    const sendBtn = document.getElementById('sendMessageBtn');
+    sendBtn.addEventListener('click', () => {
+      if (socket.readyState === WebSocket.OPEN) {
+        const message = 'ボタンがクリックされました！';
+        socket.send(message);
+        console.log('📤 サーバーへメッセージを送信:', message);
+      } else {
+        console.warn('WebSocketが接続されていません。');
+      }
+    });
+
+  </script>
+</body>
+</html>

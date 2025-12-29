@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>気象庁 津波情報（更新・追加のあった項目のみ抜粋）</title>
+    <style>
+        body {
+            font-family: 'Meiryo', 'メイリオ', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            background-color: #f4f7f9;
+            color: #333;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 400px;
+            background-color: #fff;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 15px 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #c83232;
+            border-bottom: 2px solid #c83232;
+            flex-shrink: 0;
+        }
+        #list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            position: relative; /* For loading overlay */
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            color: #005a9e;
+            z-index: 10;
+        }
+        .list-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .list-item:hover { background-color: #f0f7ff; }
+        .list-item.active {
+            background-color: #dbeeff;
+            border-left: 5px solid #007bff;
+            padding-left: 15px;
+        }
+        .list-item .title { font-weight: bold; font-size: 16px; color: #003366; }
+        .list-item .time { font-size: 14px; color: #555; }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 25px;
+            overflow-y: auto;
+        }
+        h2, h3 {
+            color: #005a9e;
+            border-bottom: 2px solid #005a9e;
+            padding-bottom: 10px;
+        }
+        .button {
+             display: block; width: 100%; padding: 15px; font-size: 18px;
+            font-weight: bold; color: #fff; border: none; border-radius: 5px;
+            cursor: pointer; transition: background-color 0.3s; margin-top: 20px;
+        }
+        #toggle-full-text-btn { background-color: #6c757d; }
+        #toggle-full-text-btn:hover { background-color: #5a6268; }
+        #copy-button { background-color: #28a745; }
+        #copy-button:hover { background-color: #218838; }
+
+        #twitter-output-container { margin-top: 20px; }
+        .tweet-chunk { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+        .tweet-chunk textarea {
+            flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;
+            font-size: 14px; resize: vertical; box-sizing: border-box; background-color: #f9f9f9;
+        }
+        .copy-chunk-btn {
+            padding: 8px 12px; font-size: 14px; color: #fff; background-color: #1DA1F2;
+            border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0; transition: background-color 0.2s;
+        }
+        .copy-chunk-btn:hover { background-color: #0d8ddb; }
+        #detail-container {
+            white-space: pre-wrap; background-color: #fff; border: 1px solid #ddd; padding: 20px;
+            border-radius: 5px; min-height: 200px; margin-top: 10px; font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">更新・追加情報リスト</div>
+        <div id="list-container"></div>
+    </div>
+    <div class="main-content">
+        <h2>情報詳細（更新・追加があった項目のみ抜粋）</h2>
+        <div id="twitter-output-container"></div>
+        <button id="toggle-full-text-btn" class="button">全文を表示</button>
+        <pre id="detail-container" style="display:none;"></pre>
+        <button id="copy-button" class="button" style="display:none;">全文コピー</button>
+    </div>
+
+    <script>
+        const JMA_BASE_URL = 'https://www.jma.go.jp/bosai/tsunami/data/';
+        const listContainer = document.getElementById('list-container');
+        const detailContainer = document.getElementById('detail-container');
+        const toggleBtn = document.getElementById('toggle-full-text-btn');
+        const copyBtn = document.getElementById('copy-button');
+
+        function formatDateTime(isoString) { return isoString ? new Date(isoString).toLocaleString('ja-JP') : '---'; }
+        function hasReviseFlag(obj) { if (obj === null || typeof obj !== 'object') return false; if (obj.hasOwnProperty('Revise') && (obj.Revise === '更新' || obj.Revise === '追加')) return true; for (const key in obj) { if (obj.hasOwnProperty(key)) { if (hasReviseFlag(obj[key])) return true; } } return false; }
+
+        /**
+         * 気象庁のJSONデータを解析し、指定の階層形式で整形します。
+         * 更新・追加があった項目を抜粋し、観測時刻がない場合は到達予想時刻を併記します。
+         * @param {object} data - 気象庁のJSONデータ
+         * @returns {string} 整形されたテキスト
+         */
+        function formatDetailInfo(data) {
+            // ヘッダー情報
+            let text = `■ 発表元: ${data.Control.EditorialOffice}\n`;
+            text += `■ 情報名: ${data.Head.Title}\n`;
+            text += `■ 発表時刻: ${formatDateTime(data.Head.ReportDateTime)}\n`;
+            if (data.Head.Headline?.Text) {
+                text += `■ 概要: ${data.Head.Headline.Text}\n`;
+            }
+
+            // 事前にエリアごとの到達予想時刻をマップに格納しておく
+            const forecastArrivalTimeMap = {};
+            if (data.Body.Tsunami?.Forecast?.Item) {
+                data.Body.Tsunami.Forecast.Item.forEach(item => {
+                    if (item.Area?.Name && item.FirstHeight?.ArrivalTime) {
+                        forecastArrivalTimeMap[item.Area.Name] = item.FirstHeight.ArrivalTime;
+                    }
+                });
+            }
+            
+            let updatedAreaBlocks = [];
+
+            // 津波観測情報の中から、更新・追加があった行だけを階層的に組み立てる
+            if (data.Body.Tsunami?.Observation?.Item) {
+                data.Body.Tsunami.Observation.Item.forEach(item => { // item = 沿岸地域
+                    let updatedStationBlocks = [];
+
+                    if (item.Station) {
+                        item.Station.forEach(st => { // st = 観測所
+                            let waveInfoLines = [];
+                            
+                            // 第1波の情報に更新があるかチェック
+                            if (st.FirstHeight?.Revise) {
+                                // ===== ここから修正箇所 =====
+                                // ArrivalTime（観測時刻）を読み込まず、状態と予想時刻のみで情報を構成する
+                                let lineContent = '';
+                                const forecastTime = forecastArrivalTimeMap[item.Area.Name];
+                                
+                                let conditionText = '';
+                                if (st.FirstHeight.Condition) {
+                                    conditionText = `第1波: ${st.FirstHeight.Condition}`;
+                                }
+                                
+                                if (forecastTime) {
+                                    const forecastInfo = `(到達予想: ${formatDateTime(forecastTime)})`;
+                                    if (conditionText) {
+                                        lineContent = `${conditionText} ${forecastInfo}`;
+                                    } else {
+                                        lineContent = `第1波 ${forecastInfo.replace(/[()]/g, '')}`;
+                                    }
+                                } else if (conditionText) {
+                                    lineContent = conditionText;
+                                }
+
+                                if (lineContent) {
+                                    waveInfoLines.push('    ' + lineContent);
+                                }
+                                // ===== ここまで修正箇所 =====
+                            }
+
+                            // 最大波の情報に更新があるかチェック
+                            if (st.MaxHeight?.Revise) {
+                                let lineContent = '';
+                                const height = st.MaxHeight.TsunamiHeight || st.MaxHeight.Value;
+                                if (height) {
+                                    lineContent = `最大波: ${height}m (観測時刻: ${formatDateTime(st.MaxHeight.DateTime)})`;
+                                } else if (st.MaxHeight.Condition) {
+                                    lineContent = `最大波: ${st.MaxHeight.Condition}`;
+                                }
+
+                                if(lineContent) {
+                                    waveInfoLines.push('    ' + lineContent);
+                                }
+                            }
+                            
+                            // 更新があった場合のみ、観測所ブロックを作成
+                            if (waveInfoLines.length > 0) {
+                                let stationBlock = `  【${st.Name}】\n`;
+                                stationBlock += waveInfoLines.join('\n');
+                                updatedStationBlocks.push(stationBlock);
+                            }
+                        });
+                    }
+                    
+                    if (updatedStationBlocks.length > 0) {
+                        let areaBlock = `▼ ${item.Area.Name}\n`;
+                        areaBlock += updatedStationBlocks.join('\n');
+                        updatedAreaBlocks.push(areaBlock);
+                    }
+                });
+            }
+
+            if (updatedAreaBlocks.length > 0) {
+                text += `\n--- 更新・追加があった観測情報 ---\n`;
+                text += updatedAreaBlocks.join('\n\n');
+            } else {
+                 text += `\n--- 更新・追加のあった観測項目はありません ---`;
+            }
+            
+            if (data.Body.Text) {
+                text += `\n\n--- 付加情報 ---\n${data.Body.Text}`;
+            }
+
+            return text;
+        }
+
+        function splitForTwitter(text) { const PAGER_LENGTH = 8; const CHUNK_LENGTH = 140 - PAGER_LENGTH; if (!text || text.trim() === '') { return []; } const totalPages = Math.ceil(text.length / CHUNK_LENGTH); const chunks = []; for (let i = 0; i < totalPages; i++) { const start = i * CHUNK_LENGTH; const end = start + CHUNK_LENGTH; const chunkText = text.substring(start, end); const pager = ` (${i + 1}/${totalPages})`; chunks.push(chunkText + pager); } return chunks; }
+        function displayTwitterChunks(chunks) { const outputContainer = document.getElementById('twitter-output-container'); outputContainer.innerHTML = ''; if (chunks.length === 0) { toggleBtn.style.display = 'none'; return; } else { toggleBtn.style.display = 'block'; } const header = document.createElement('h3'); header.textContent = 'Twitter投稿用'; outputContainer.appendChild(header); chunks.forEach((chunk) => { const wrapper = document.createElement('div'); wrapper.className = 'tweet-chunk'; const textarea = document.createElement('textarea'); textarea.value = chunk; textarea.rows = 5; textarea.readOnly = true; const button = document.createElement('button'); button.textContent = 'コピー'; button.className = 'copy-chunk-btn'; button.onclick = () => { navigator.clipboard.writeText(chunk).then(() => { button.textContent = '完了!'; setTimeout(() => { button.textContent = 'コピー'; }, 2000); }); }; wrapper.appendChild(textarea); wrapper.appendChild(button); outputContainer.appendChild(wrapper); }); }
+        function showLoading(show, message = '読込中...') {
+            let overlay = document.getElementById('loading-overlay');
+            if (show) {
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'loading-overlay';
+                    overlay.className = 'loading-overlay';
+                    listContainer.appendChild(overlay);
+                }
+                overlay.textContent = message;
+                overlay.style.display = 'flex';
+            } else {
+                if (overlay) overlay.style.display = 'none';
+            }
+        }
+        function renderList(listData) {
+            listContainer.innerHTML = ''; 
+            if (listData?.length > 0) {
+                listData.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    div.innerHTML = `<div class="title">${item.ttl}</div><div class="time">${formatDateTime(item.rdt)} (${item.anm})</div>`;
+                    div.addEventListener('click', () => fetchDetails(item.json, div));
+                    listContainer.appendChild(div);
+                    if (index === 0) fetchDetails(item.json, div);
+                });
+            } else {
+                listContainer.innerHTML = '<div style="padding: 20px; color: #555;">現在、更新または追加の情報はありません。</div>';
+                detailContainer.textContent = '';
+                displayTwitterChunks([]);
+                toggleBtn.style.display = 'none';
+            }
+        }
+        async function fetchDetails(fileName, targetElement) {
+            document.querySelectorAll('.list-item.active').forEach(el => el.classList.remove('active'));
+            if(targetElement) targetElement.classList.add('active');
+            detailContainer.textContent = '詳細を読み込み中...';
+            displayTwitterChunks([]);
+            detailContainer.style.display = 'none';
+            copyBtn.style.display = 'none';
+            toggleBtn.textContent = '全文を表示';
+            try {
+                const response = await fetch(JMA_BASE_URL + fileName);
+                if (!response.ok) throw new Error(`詳細取得エラー: ${response.status}`);
+                const data = await response.json();
+                const fullText = formatDetailInfo(data);
+                detailContainer.textContent = fullText;
+                const chunks = splitForTwitter(fullText);
+                displayTwitterChunks(chunks);
+            } catch (error) {
+                console.error("fetchDetailsエラー:", error);
+                const errorText = `詳細情報の読み込みに失敗しました。\n${error.message}`;
+                detailContainer.textContent = errorText;
+                displayTwitterChunks(splitForTwitter(errorText));
+            }
+        }
+        async function initialize() {
+            showLoading(true, '更新・追加情報を検索中...');
+            try {
+                const listResponse = await fetch(JMA_BASE_URL + 'list.json');
+                if (!listResponse.ok) throw new Error(`リスト取得エラー: ${listResponse.status}`);
+                const listData = await listResponse.json();
+                const checkPromises = listData.map(async (item) => {
+                    try {
+                        const response = await fetch(JMA_BASE_URL + item.json);
+                        if (!response.ok) return null;
+                        const data = await response.json();
+                        return hasReviseFlag(data) ? item : null;
+                    } catch {
+                        return null;
+                    }
+                });
+                const results = await Promise.all(checkPromises);
+                const filteredList = results.filter(item => item !== null);
+                renderList(filteredList);
+            } catch (error) {
+                console.error("initializeエラー:", error);
+                listContainer.innerHTML = `<div style="padding:20px; color:red;">エラー: ${error.message}</div>`;
+            } finally {
+                showLoading(false);
+            }
+        }
+        toggleBtn.addEventListener('click', () => { const isHidden = detailContainer.style.display === 'none'; detailContainer.style.display = isHidden ? 'block' : 'none'; copyBtn.style.display = isHidden ? 'block' : 'none'; toggleBtn.textContent = isHidden ? '全文を隠す' : '全文を表示'; });
+        copyBtn.addEventListener('click', () => { const textToCopy = detailContainer.textContent; navigator.clipboard.writeText(textToCopy).then(() => alert('全文をクリップボードにコピーしました！')).catch(err => alert('コピーに失敗しました。')); });
+
+        initialize();
+    </script>
+</body>
+</html>

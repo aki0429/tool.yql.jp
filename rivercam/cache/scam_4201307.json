@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[129.8809595,32.8192387]},"properties":{"id":110753004,"name":"長与駅前（長与川）","name_kana":"","ofc_cd":89,"sys_id":1,"sys_cam_id":"10753004","pause":0,"date_type":2,"cam_kind":4,"own_cd":10753}}]}

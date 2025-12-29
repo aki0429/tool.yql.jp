@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[143.198230556,42.009241667]},"properties":{"id":100257365,"name":"歌別川  2.7Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257365","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

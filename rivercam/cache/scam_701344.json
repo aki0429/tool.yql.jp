@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.30254,37.234258]},"properties":{"id":101793166,"name":"釈迦堂川(前川原橋)","name_kana":"しゃかどうかわ（まえかわはらはし）","ofc_cd":82,"sys_id":1,"sys_cam_id":"1793166","pause":0,"date_type":2,"cam_kind":4,"own_cd":1793}}]}

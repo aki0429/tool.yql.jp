@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.841700614,35.113308729]},"properties":{"id":103073051,"name":"下佐久間","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"3073051","pause":0,"date_type":2,"cam_kind":4,"own_cd":3073}}]}

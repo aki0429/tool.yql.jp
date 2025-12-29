@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スライドショー</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Noto Sans JP', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #slideshow-container {
+            position: relative;
+            text-align: center;
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+        #cam-image {
+            max-width: 100%;
+            max-height: 85vh; /* 画像の最大高さを制限 */
+            border: 2px solid #555;
+            border-radius: 4px;
+            background-color: #111;
+        }
+        #cam-info {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 8px 0; /* 少しパディングを調整 */
+        }
+        #cam-name {
+            font-size: 1.2rem; /* ▼変更▼ */
+            font-weight: 700;
+        }
+        #controls {
+            margin-top: 5px;
+        }
+        #controls button {
+            background: #ffffff33;
+            border: 1px solid white;
+            color: white;
+            cursor: pointer;
+            font-size: 1.0rem;   /* ▼変更▼ */
+            padding: 4px 12px; /* ▼変更▼ */
+            margin: 0 10px;
+        }
+        #cam-counter {
+            font-size: 1.0rem; /* ▼変更▼ */
+            vertical-align: middle; /* ボタンとの垂直位置を調整 */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="slideshow-container">
+        <img id="cam-image" src="https://placehold.jp/1280x960.png?text=Loading..." alt="カメラ画像">
+        <div id="cam-info">
+            <div id="cam-name">読み込み中...</div>
+            <div id="controls">
+                <button id="prev-btn">&lt; 前へ</button>
+                <span id="cam-counter"></span>
+                <button id="next-btn">次へ &gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let allCameraInfo = {};
+        let slideshowIds = [];
+        let currentIndex = 0;
+        let slideshowTimer = null;
+
+        class CameraCache {
+            constructor() {
+                this.store = localStorage;
+                this.prefix = 'riverCam_json_';
+                this.version = 1;
+                this.expiration = 28 * 24 * 60 * 60 * 1000;
+            }
+            _key(id) { return `${this.prefix}${id}`; }
+            _isValid(data) {
+                return data && data.version === this.version && (new Date().getTime() - data.timestamp) < this.expiration;
+            }
+            set(id, value) {
+                const data = { version: this.version, timestamp: new Date().getTime(), value: value };
+                this.store.setItem(this._key(id), JSON.stringify(data));
+            }
+            get(id) {
+                try {
+                    const data = JSON.parse(this.store.getItem(this._key(id)));
+                    if (this._isValid(data)) return data.value;
+                    this.remove(id);
+                } catch (e) { this.remove(id); }
+                return null;
+            }
+            remove(id) { this.store.removeItem(this._key(id)); }
+        }
+        const cameraCache = new CameraCache();
+
+        async function loadAllCameraData() {
+            try {
+                const listResponse = await fetch('json_files_list.json');
+                if (!listResponse.ok) throw new Error('ファイルリストの取得に失敗');
+                const fileList = await listResponse.json();
+
+                for (const file of fileList.files) {
+                    const cachedData = cameraCache.get(file);
+                    if (cachedData) {
+                        cachedData.forEach(cam => {
+                            allCameraInfo[cam.id] = { name: cam.name };
+                        });
+                        continue;
+                    }
+
+                    try {
+                        const response = await fetch('cache/' + file);
+                        if (!response.ok) continue;
+                        const data = await response.json();
+                        
+                        if (data.features && Array.isArray(data.features)) {
+                            const cameras = data.features
+                                .filter(f => f.properties && f.properties.id)
+                                .map(f => ({
+                                    id: f.properties.id.toString(),
+                                    name: f.properties.name || '名称未設定'
+                                }));
+                            
+                            if (cameras.length > 0) {
+                                cameraCache.set(file, cameras);
+                                cameras.forEach(cam => {
+                                    allCameraInfo[cam.id] = { name: cam.name };
+                                });
+                            }
+                        }
+                    } catch (err) { /* ignore individual file errors */ }
+                }
+            } catch (error) {
+                console.error('全カメラ情報の読み込みに失敗:', error);
+                document.getElementById('cam-name').textContent = 'カメラ情報の読み込みに失敗しました。';
+            }
+        }
+
+        async function showSlide() {
+            if (slideshowIds.length === 0) return;
+
+            const camId = slideshowIds[currentIndex];
+            const camData = allCameraInfo[camId];
+            
+            const nameEl = document.getElementById('cam-name');
+            const imgEl = document.getElementById('cam-image');
+            const counterEl = document.getElementById('cam-counter');
+
+            nameEl.textContent = camData ? camData.name : 'カメラ情報なし';
+            imgEl.src = 'https://placehold.jp/1280x960.png?text=Loading...';
+            counterEl.textContent = `${currentIndex + 1} / ${slideshowIds.length}`;
+
+            try {
+                const response = await fetch(`proxy.php?cam_id=${camId}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const camInfo = await response.json();
+
+                let imageUrl = null;
+                if (camInfo.obsInfo && camInfo.obsInfo.currProvUrl) imageUrl = camInfo.obsInfo.currProvUrl;
+                else if (camInfo.currProvUrl) imageUrl = camInfo.currProvUrl;
+                else if (camInfo.archiveList && camInfo.archiveList.length > 0 && camInfo.archiveList[0].arcUrl) imageUrl = camInfo.archiveList[0].arcUrl;
+                
+                if (imageUrl) {
+                    imgEl.src = imageUrl;
+                } else {
+                    throw new Error('画像URLが見つかりません');
+                }
+            } catch (error) {
+                console.error(`画像(${camId})の読み込みに失敗:`, error);
+                imgEl.src = 'https://placehold.jp/1280x960.png?text=Error';
+            }
+        }
+
+        function startSlideshowLoop() {
+            if (slideshowTimer) clearInterval(slideshowTimer);
+            showSlide();
+            slideshowTimer = setInterval(() => {
+                currentIndex = (currentIndex + 1) % slideshowIds.length;
+                showSlide();
+            }, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadAllCameraData();
+
+            const params = new URLSearchParams(window.location.search);
+            const camsParam = params.get('cams');
+
+            if (camsParam) {
+                slideshowIds = camsParam.split(',');
+                if (slideshowIds.length > 0) {
+                    startSlideshowLoop();
+                }
+            } else {
+                document.getElementById('cam-name').textContent = '表示するカメラがURLで指定されていません。';
+            }
+
+            document.getElementById('next-btn').addEventListener('click', () => {
+                currentIndex = (currentIndex + 1) % slideshowIds.length;
+                startSlideshowLoop();
+            });
+
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                currentIndex = (currentIndex - 1 + slideshowIds.length) % slideshowIds.length;
+                startSlideshowLoop();
+            });
+        });
+    </script>
+</body>
+</html>

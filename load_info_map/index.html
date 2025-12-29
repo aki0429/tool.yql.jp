@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>リアルタイム道路混雑マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        /* ページ全体と地図のサイズ設定 */
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        html, body, #map {
+            height: 100%;
+            width: 100vw;
+        }
+
+        /* 凡例のスタイルを調整 */
+        .legend {
+            padding: 10px;
+            line-height: 22px; /* 行の高さを調整 */
+            color: #333;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            border-radius: 5px;
+        }
+        .legend h4 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 1.0;
+            border-radius: 50%; /* 色のアイコンを円形に */
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        .legend .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .legend .legend-label {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+    // 1. 地図の初期設定
+    const map = L.map('map').setView([35.681236, 139.767125], 13); // 初期表示: 東京駅
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // ★★★ クレジットを追加 ★★★
+    map.attributionControl.setPrefix('<a href="https://www.mlit.go.jp/report/press/road01_hh_001930.html" target="_blank">国土交通省提供</a> | ');
+
+
+    let trafficLayer = L.layerGroup().addTo(map);
+
+    // 2. 混雑度の凡例を追加 (5段階)
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+        const div = L.DomUtil.create('div', 'info legend');
+        // ユーザー指定の閾値と色設定
+        const grades = [0, 20, 50, 80, 120]; 
+        const labels = ['空いている', '順調', '普通', 'やや混雑', '混雑'];
+        const colors = ['#28a745', '#17a2b8', '#ffc107', '#fd7e14', '#dc3545']; // 緑, 水色, 黄, オレンジ, 赤 (順序を閾値に合わせました)
+
+
+        div.innerHTML += '<h4>5分間交通量 (常設/CCTV)</h4>'; // タイトル変更
+        for (let i = 0; i < grades.length; i++) {
+            const from = grades[i];
+            const to = grades[i + 1];
+            const rangeText = to ? `${from}–${to - 1}台` : `${from}台以上`;
+            
+            div.innerHTML += 
+                `<div class="legend-item">` +
+                    `<i style="background:${colors[i]}"></i>` +
+                    `<span class="legend-label"><b>${labels[i]}</b> (${rangeText})</span>` +
+                `</div>`;
+        }
+        return div;
+    };
+    legend.addTo(map);
+
+    // 3. 交通量データを取得して地図に描画する関数
+    async function fetchTrafficData() {
+        console.log("常設およびCCTVのデータを取得しています...");
+        trafficLayer.clearLayers();
+
+        const bounds = map.getBounds();
+        const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - 20);
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = (Math.floor(now.getMinutes() / 5) * 5).toString().padStart(2, '0');
+        const timeCode = `${year}${month}${day}${hours}${minutes}`;
+        
+        // ★★★ 取得するデータソースを配列で定義 ★★★
+        const dataSources = [
+            { type: 't_travospublic_measure_5m', name: '常設' },
+            { type: 't_travospublic_measure_5m_img', name: 'CCTV' }
+        ];
+
+        try {
+            // ★★★ Promise.allを使って両方のデータを並行して取得 ★★★
+            const promises = dataSources.map(source => {
+                const params = new URLSearchParams({
+                    service: "WFS",
+                    version: "2.0.0",
+                    request: "GetFeature",
+                    typeNames: source.type,
+                    outputFormat: "application/json",
+                    srsName: "EPSG:4326",
+                    cql_filter: `道路種別='3' AND 時間コード=${timeCode} AND BBOX(ジオメトリ,${bbox},'EPSG:4326')`
+                });
+                const proxyUrl = `proxy.php?${params.toString()}`;
+                return fetch(proxyUrl).then(res => res.json());
+            });
+
+            const results = await Promise.all(promises);
+
+            // ★★★ 取得した全データを一つの配列に統合 ★★★
+            let allFeatures = [];
+            results.forEach((data, index) => {
+                if (data.features && data.features.length > 0) {
+                    // 各データにデータソース名を追加
+                    data.features.forEach(f => f.properties.source = dataSources[index].name);
+                    allFeatures = allFeatures.concat(data.features);
+                }
+            });
+            
+            if (allFeatures.length === 0) {
+                 console.log("指定された範囲に交通量データが見つかりませんでした。");
+                 return;
+            }
+
+            // 統合したデータをGeoJSONとして描画
+            const geoJsonData = { type: "FeatureCollection", features: allFeatures };
+
+            L.geoJSON(geoJsonData, {
+                pointToLayer: function (feature, latlng) {
+                    const props = feature.properties;
+                    const upTotal = (props['上り・小型交通量'] || 0) + (props['上り・大型交通量'] || 0);
+                    const downTotal = (props['下り・小型交通量'] || 0) + (props['下り・大型交通量'] || 0);
+                    const totalTraffic = upTotal + downTotal;
+
+                    // ユーザー指定の閾値で色を決定
+                    let color;
+                    if (totalTraffic >= 120) color = '#dc3545';      // 混雑
+                    else if (totalTraffic >= 80) color = '#fd7e14'; // やや混雑
+                    else if (totalTraffic >= 50) color = '#ffc107'; // 普通
+                    else if (totalTraffic >= 20) color = '#17a2b8'; // 順調
+                    else color = '#28a745';                         // 空いている
+
+                    // ★★★ ポップアップにデータソース名を表示 ★★★
+                    const popupContent = `
+                        <b>観測地点 (${props.source})</b><br>
+                        交通量 (5分あたり): ${totalTraffic} 台<br>
+                        上り合計: ${upTotal} 台<br>
+                        下り合計: ${downTotal} 台<br>
+                        観測時間: ${props['観測年月日']} ${String(props['時間帯']).padStart(4, '0')}
+                    `;
+
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: color,
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).bindPopup(popupContent);
+                }
+            }).addTo(trafficLayer);
+             console.log(`データの描画が完了しました。(${allFeatures.length}地点)`);
+        } catch (error) {
+            console.error("データの取得または処理に失敗しました:", error);
+        }
+    }
+
+    // 4. 初回実行と定期更新の設定
+    fetchTrafficData();
+    setInterval(fetchTrafficData, 300000); // 5分ごとに更新
+    map.on('moveend', fetchTrafficData);
+
+</script>
+
+</body>
+</html>
+

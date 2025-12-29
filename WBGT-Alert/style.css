@@ -1,0 +1,50 @@
+/* ページ全体の基本設定 */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    /* ダークモード設定 */
+    background-color: #6b6b6b; /* 背景を暗い灰色に */
+    color: #ffffff;            /* 基本の文字色を明るい灰色に */
+}
+
+h1 {
+    padding: 0 20px;
+}
+
+/* 地図を表示する要素のスタイル */
+#map {
+    height: 100vh;
+    width: 100%;
+}
+
+/* ◉マーカーの基本スタイル */
+.custom-div-icon {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgb(255, 255, 255); /* 枠線の色を白っぽく変更 */
+}
+
+/* WBGTレベルごとの色設定 (ここは変更なし) */
+/* 注意 (25未満) */
+.wbgt-level-1 {
+    background-color: #008000; /* Green */
+    color: white;
+}
+/* 警戒 (25-28) */
+.wbgt-level-2 {
+    background-color: #ffd700; /* Gold */
+    color: black;
+}
+/* 厳重警戒 (28-31) */
+.wbgt-level-3 {
+    background-color: #ff8c00; /* DarkOrange */
+    color: white;
+}
+/* 危険 (31以上) */
+.wbgt-level-4 {
+    background-color: #dc143c; /* Crimson */
+    color: white;
+}

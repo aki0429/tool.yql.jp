@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.779658333,42.543538889]},"properties":{"id":100257377,"name":"板谷川  0.9Kp","name_kana":"","ofc_cd":81,"sys_id":1,"sys_cam_id":"257377","pause":0,"date_type":2,"cam_kind":4,"own_cd":257}}]}

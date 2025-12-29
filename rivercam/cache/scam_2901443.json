@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.801694,34.307097]},"properties":{"id":107425065,"name":"谷","name_kana":"たに","ofc_cd":86,"sys_id":1,"sys_cam_id":"7425065","pause":0,"date_type":0,"cam_kind":4,"own_cd":7425}}]}

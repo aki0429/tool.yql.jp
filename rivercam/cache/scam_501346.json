@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.2676034,40.2904073]},"properties":{"id":101281014,"name":"藤琴","name_kana":"","ofc_cd":82,"sys_id":1,"sys_cam_id":"1281014","pause":0,"date_type":0,"cam_kind":4,"own_cd":1281}}]}

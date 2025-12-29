@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[132.7133333,33.7705556]},"properties":{"id":309729016,"name":"大谷川（下三谷）／県","name_kana":"","ofc_cd":38,"sys_id":3,"sys_cam_id":"38010104","pause":0,"date_type":1,"cam_kind":2,"own_cd":9729}}]}

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMAリアルタイム情報API ドキュメント</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #f8f9fa;
+            --text-color: #34495e;
+            --heading-color: #2c3e50;
+            --border-color: #e9ecef;
+            --code-bg-color: #2d2d2d;
+            --code-text-color: #f8f8f2;
+            --table-header-bg: #e9ecef;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-color);
+            margin: 0;
+            background-color: #fff;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.2em;
+        }
+        main section {
+            padding: 25px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        main section:last-child {
+            border-bottom: none;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: var(--heading-color);
+            margin-top: 0;
+            padding-bottom: 10px;
+        }
+        code {
+            font-family: "SF Mono", "Consolas", "Menlo", monospace;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            color: #495057;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: var(--code-bg-color);
+            color: var(--code-text-color);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        pre code {
+            background-color: transparent;
+            border: none;
+            color: inherit;
+            padding: 0;
+            font-size: inherit;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+        }
+        th {
+            background-color: var(--table-header-bg);
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: var(--secondary-color);
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        ::selection {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>気象庁 土砂災害警戒情報 リアルタイムAPIドキュメント</h1>
+    </header>
+
+    <main class="container">
+        <section id="overview">
+            <h2>1. 概要</h2>
+            <p>
+                このAPIは、気象庁が発表する最新の**土砂災害警戒情報 (<code>VXWW50</code>)** をリアルタイムで提供するWebSocketエンドポイントです。
+            </p>
+            <p>
+                サーバー側で定期的に気象庁の情報をポーリングし、内容に更新があった場合にのみ、接続している全てのクライアントに対して新しい情報をJSON形式でプッシュ（ブロードキャスト）します。
+            </p>
+        </section>
+
+        <section id="connection">
+            <h2>2. 接続情報</h2>
+            <p>WebSocketプロトコルを使用して以下のエンドポイントに接続してください。</p>
+            <ul>
+                <li><strong>エンドポイントURL:</strong> <code>ws://jma.ikunocam.net/websocket</code></li>
+            </ul>
+        </section>
+
+        <section id="flow">
+            <h2>3. 通信フロー</h2>
+            <p>
+                通信はサーバーからクライアントへの一方向です。クライアントは接続後、メッセージを待つだけで、何かを送信する必要はありません。
+            </p>
+            <ol>
+                <li>クライアントがWebSocketエンドポイントに接続します。</li>
+                <li>サーバーは接続を受け入れます。</li>
+                <li>サーバー側で気象庁の情報に更新が検知されると、サーバーは接続中の全クライアントに最新の情報をJSON形式で送信します。</li>
+                <li>情報に更新がない場合、サーバーからメッセージは送信されません。</li>
+            </ol>
+        </section>
+
+        <section id="data-format">
+            <h2>4. データ形式</h2>
+            <p>サーバーから送信されるデータは、UTF-8でエンコードされた**JSON文字列**です。</p>
+
+            <h3>サンプルレスポンス</h3>
+            <pre><code>{
+    "control": {
+        "title": "土砂災害警戒情報",
+        "publishingOffice": "石川県 金沢地方気象台",
+        "xmlDateTime": "2025-08-10T06:20:41Z"
+    },
+    "head": {
+        "title": "石川県土砂災害警戒情報",
+        "reportDateTime": "2025-08-10T15:20:00+09:00",
+        "infoType": "発表",
+        "headlineText": "〈概況〉 降り続く大雨のため、警戒対象地域では土砂災害の危険度が高まっています。 〈とるべき措置〉 　避難が必要となる危険な状況となっています【警戒レベル４相当情報［土砂災害］】。 　崖の近くなど土砂災害の発生しやすい地区にお住まいの方は、早めの避難を心がけるとともに、市町から発表される避難指示等の情報に注意してください。",
+        "alertSummary": [
+            {
+                "condition": "発表",
+                "areas": [
+                    { "name": "輪島市", "code": "1720400" }
+                ]
+            }
+        ]
+    },
+    "body": {
+        "targetPrefecture": {
+            "name": "石川県",
+            "code": "170000"
+        },
+        "warnings": [
+            {
+                "area": { "name": "輪島市", "code": "1720400" },
+                "alertLevel": { "name": "警戒", "code": "3", "status": "発表" }
+            }
+        ],
+        "contactInfo": {
+            "prefecture": { "name": "石川県", "phone": "076-225-1751（石川県土木部砂防課）" },
+            "jma": { "name": "金沢地方気象台", "phone": "03-5422-1018（気象庁大気海洋部予報課）" }
+        }
+    }
+}</code></pre>
+
+            <h3>データフィールド詳細</h3>
+            <h4>ルートオブジェクト</h4>
+            <table>
+                <thead>
+                    <tr><th>キー</th><th>データ型</th><th>説明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>control</code></td><td>Object</td><td>XMLファイルの管理情報です。</td></tr>
+                    <tr><td><code>head</code></td><td>Object</td><td>情報のヘッダー部。タイトルや発表時刻、概要などが含まれます。</td></tr>
+                    <tr><td><code>body</code></td><td>Object</td><td>情報の本体。対象地域や各市町村ごとの詳細な警戒情報が含まれます。</td></tr>
+                </tbody>
+            </table>
+
+            <h4><code>head</code> オブジェクト</h4>
+            <table>
+                <thead>
+                    <tr><th>キー</th><th>データ型</th><th>説明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>head.title</code></td><td>String</td><td>情報の正式名称（例: "石川県土砂災害警戒情報"）。</td></tr>
+                    <tr><td><code>head.reportDateTime</code></td><td>String (ISO 8601)</td><td>情報発表時刻。</td></tr>
+                    <tr><td><code>head.infoType</code></td><td>String</td><td>情報の種類。「発表」「更新」「訂正」など。</td></tr>
+                    <tr><td><code>head.headlineText</code></td><td>String</td><td>情報の概況を示すテキスト。</td></tr>
+                    <tr><td><code>head.alertSummary</code></td><td>Array</td><td><strong>警戒中の地域のみ</strong>をまとめた要約情報。</td></tr>
+                </tbody>
+            </table>
+
+            <h4><code>body</code> オブジェクト</h4>
+            <table>
+                <thead>
+                    <tr><th>キー</th><th>データ型</th><th>説明</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>body.targetPrefecture</code></td><td>Object</td><td>対象となっている都道府県の情報。</td></tr>
+                    <tr><td><code>body.warnings</code></td><td>Array</td><td>対象都道府県内の<strong>全市町村</strong>の警戒レベル情報を含む配列。</td></tr>
+                    <tr><td><code>body.contactInfo</code></td><td>Object</td><td>都道府県と気象台の連絡先情報。</td></tr>
+                </tbody>
+            </table>
+             <div class="note">
+                <strong>💡 用途による使い分け:</strong>
+                <ul>
+                    <li><strong>警戒中の地域だけ</strong>を知りたい場合は、軽量な <code>head.alertSummary</code> を利用するのが効率的です。</li>
+                    <li><strong>全地域の状況（警戒・解除含む）</strong>をマップ表示するなど、網羅的な情報が必要な場合は <code>body.warnings</code> を利用します。</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="example">
+            <h2>5. 実装例 (JavaScript)</h2>
+            <p>以下は、ブラウザでこのWebSocket APIに接続し、受信したデータをコンソールに出力する簡単なJavaScriptのコード例です。</p>
+            <pre><code>// WebSocketサーバーのエンドポイント
+const WEBSOCKET_URI = 'ws://jma.ikunocam.net/websocket';
+
+console.log(`Connecting to ${WEBSOCKET_URI}...`);
+const socket = new WebSocket(WEBSOCKET_URI);
+
+// 接続成功時のイベント
+socket.onopen = (event) => {
+    console.log("✅ WebSocket connection established.");
+};
+
+// メッセージ受信時のイベント
+socket.onmessage = (event) => {
+    try {
+        // 受信したデータはJSON文字列なのでオブジェクトにパースする
+        const jmaData = JSON.parse(event.data);
+        
+        console.log("📬 New data received:", jmaData);
+        
+        // ここで受信したデータを使って画面を更新するなどの処理を行う
+        // 例: 警戒中の地域名を表示
+        if (jmaData.head && jmaData.head.alertSummary.length > 0) {
+            console.log("現在警戒中の地域:");
+            jmaData.head.alertSummary.forEach(summary => {
+                summary.areas.forEach(area => {
+                    console.log(`- ${area.name} (${summary.condition})`);
+                });
+            });
+        } else {
+            console.log("現在、警戒中の地域はありません。");
+        }
+
+    } catch (e) {
+        console.error("Error parsing received data:", e);
+    }
+};
+
+// 接続エラー時のイベント
+socket.onerror = (error) => {
+    console.error("WebSocket Error:", error);
+};
+
+// 接続切断時のイベント
+socket.onclose = (event) => {
+    if (event.wasClean) {
+        console.log(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+    } else {
+        console.error('Connection died');
+    }
+};
+</code></pre>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>JMA Real-time Information API</p>
+    </footer>
+
+</body>
+</html>

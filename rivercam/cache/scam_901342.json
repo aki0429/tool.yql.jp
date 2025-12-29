@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.087983,36.476329]},"properties":{"id":102305062,"name":"石岡橋（小貝川）益子町北中","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"2305062","pause":0,"date_type":2,"cam_kind":4,"own_cd":2305}}]}

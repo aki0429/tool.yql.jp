@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.4570278,32.2317778]},"properties":{"id":111009059,"name":"津奈木川","name_kana":"","ofc_cd":89,"sys_id":1,"sys_cam_id":"11009059","pause":1,"date_type":2,"cam_kind":4,"own_cd":11009}}]}

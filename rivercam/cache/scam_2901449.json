@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.74925277,34.14331111]},"properties":{"id":222077014,"name":"城門","name_kana":"しろもん","ofc_cd":86,"sys_id":2,"sys_cam_id":"29010021","pause":0,"date_type":0,"cam_kind":2,"own_cd":22077}}]}

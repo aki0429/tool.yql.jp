@@ -1,0 +1,44 @@
+/* ページの余白をなくす */
+body {
+    margin: 0;
+    padding: 0;
+}
+
+/* 地図を画面全体に表示する */
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+}
+
+/* 凡例のスタイル */
+.legend {
+    position: absolute;
+    bottom: 30px;
+    left: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    font-family: sans-serif;
+    font-size: 12px;
+    /* 地図操作の邪魔にならないようにする */
+    z-index: 1000;
+}
+
+.legend h4 {
+    margin: 0 0 5px 0;
+}
+
+.legend div {
+    display: flex;
+    align-items: center;
+}
+
+.legend span {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 5px;
+    border: 1px solid #ccc;
+}

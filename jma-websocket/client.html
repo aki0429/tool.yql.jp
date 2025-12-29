@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMAリアルタイム情報</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; }
+        #status { font-weight: bold; padding: 10px; border-radius: 5px; }
+        .connected { color: green; background-color: #e8f5e9; }
+        .disconnected { color: red; background-color: #ffebee; }
+        pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        h1, h2 { border-bottom: 2px solid #eee; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h1>気象庁 リアルタイム情報 (WebSocket)</h1>
+    <div id="status" class="disconnected">接続待機中...</div>
+    
+    <h2>受信データ</h2>
+    <pre id="data-container">まだデータを受信していません。</pre>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const dataContainer = document.getElementById('data-container');
+
+        // WebSocketサーバーに接続
+        // 'localhost' の部分は、サーバーを動かすマシンのIPアドレスやドメイン名に適宜変更してください。
+        const socket = new WebSocket('ws://localhost:8080');
+
+        // 接続が開いたときのイベント
+        socket.onopen = function(e) {
+            console.log("接続成功");
+            statusDiv.textContent = '接続中';
+            statusDiv.className = 'connected';
+        };
+
+        // サーバーからメッセージを受信したときのイベント
+        socket.onmessage = function(event) {
+            console.log('データ受信:', event.data);
+            try {
+                // 受信したJSON文字列をオブジェクトに変換
+                const data = JSON.parse(event.data);
+                // 整形して表示
+                dataContainer.textContent = JSON.stringify(data, null, 2); 
+            } catch(e) {
+                console.error("JSONの解析に失敗しました: ", e);
+                dataContainer.textContent = "受信したデータの形式が正しくありません。";
+            }
+        };
+
+        // 接続が閉じたときのイベント
+        socket.onclose = function(event) {
+            console.log('接続が切れました');
+            statusDiv.textContent = '接続が切れました';
+            statusDiv.className = 'disconnected';
+        };
+
+        // エラーが発生したときのイベント
+        socket.onerror = function(error) {
+            console.error('WebSocketエラー: ', error);
+        };
+    </script>
+</body>
+</html>

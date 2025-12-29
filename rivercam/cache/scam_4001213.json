@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[130.9547111,33.7302639]},"properties":{"id":310255001,"name":"長音寺橋","name_kana":"","ofc_cd":40,"sys_id":3,"sys_cam_id":"40010057","pause":0,"date_type":1,"cam_kind":2,"own_cd":10255}}]}

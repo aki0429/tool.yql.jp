@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[139.775975,37.25635277]},"properties":{"id":101793007,"name":"戸石川（戸赤）","name_kana":"といしがわ（とあか）","ofc_cd":82,"sys_id":1,"sys_cam_id":"1793007","pause":0,"date_type":2,"cam_kind":4,"own_cd":1793}}]}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>道路カメラマップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="viewer" class="hidden">
+    <div id="image-container">
+      <img id="main-image" src="" alt="カメラ画像" />
+      <div id="checkbox-area">
+        <label><input type="checkbox" id="crawl-check"> この画像をクロールします</label>
+      </div>
+      <button id="close-btn">×</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

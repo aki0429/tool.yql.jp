@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[141.390056,40.886583]},"properties":{"id":221015001,"name":"高瀬川河口","name_kana":"たかせがわかこう","ofc_cd":82,"sys_id":2,"sys_cam_id":"21015001","pause":0,"date_type":0,"cam_kind":2,"own_cd":21015}}]}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.900556,35.374444]},"properties":{"id":221811058,"name":"小渕簡易水位計","name_kana":"おぶちかんいすいいけい","ofc_cd":85,"sys_id":2,"sys_cam_id":"21811002","pause":0,"date_type":0,"cam_kind":2,"own_cd":21811}}]}

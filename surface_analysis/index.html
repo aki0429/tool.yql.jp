@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>実況天気図</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* 基本的なスタイルリセット */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* スクロールバーを非表示 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* 地図コンテナを全画面に設定 */
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #aadaff; /* 海の色 */
+        }
+
+        /* --- 左上のタイトルデザイン --- */
+        .title-container {
+            position: absolute;
+            top: 25px; /* 表示開始位置を調整 */
+            left: 0;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .title-box {
+            margin-left: -30px;
+            transform: skewX(-16deg); /* 90度 - 74度 = 16度傾ける */
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.4);
+            pointer-events: auto;
+            margin-bottom: 8px; /* ボックス間の余白 */
+            overflow: hidden; /* コンテンツが角からはみ出ないように */
+        }
+
+        /* メインタイトルのスタイル */
+        .main-title-box {
+            background: rgba(26, 35, 126, 0.85); /* 濃紺 */
+            border-bottom-right-radius: 12px; /* 右下の角の丸みを小さくする */
+        }
+
+        /* 時刻表示ボックスのスタイル */
+        .time-box {
+             background: rgba(55, 71, 152, 0.85); /* 少し明るい紺 */
+             border-bottom-right-radius: 12px; /* 右下の角の丸みを小さくする */
+        }
+
+        .title-content {
+            transform: skewX(16deg); /* 傾けたコンテンツを元に戻す */
+            padding: 0 60px 0 70px; /* 左右の余白を調整 */
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .title-content h1 {
+            margin: 0;
+            padding: 12px 0;
+            font-size: 28px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .title-content p {
+            margin: 0;
+            padding: 8px 0;
+            font-size: 18px;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0.95;
+        }
+        
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -25px;
+            margin-left: -25px;
+            z-index: 2000; 
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="map">
+        <div id="loader" class="loader"></div>
+    </div>
+
+    <div class="title-container">
+        <div class="title-box main-title-box">
+            <div class="title-content">
+                <h1>実況天気図</h1>
+            </div>
+        </div>
+        <div class="title-box time-box">
+            <div class="title-content">
+                <p id="report-time"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const map = L.map('map', {
+            zoomControl: false,
+            worldCopyJump: true 
+        }).setView([38, 135], 5);
+        
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const loader = document.getElementById('loader');
+        const reportTimeEl = document.getElementById('report-time');
+
+        const japanStyle = { fillColor: "#e8f5e9", weight: 1, opacity: 1, color: '#81c784', fillOpacity: 1 };
+        const customStyle = { fillColor: "#f5f5f5", weight: 1, opacity: 1, color: '#bdbdbd', fillOpacity: 1 };
+
+        // GeoJSONデータの経度をずらすヘルパー関数
+        function offsetGeoJsonFeature(feature, offset) {
+            const newFeature = JSON.parse(JSON.stringify(feature)); // 深いコピー
+            function offsetCoords(coords) {
+                if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                    return [coords[0] + offset, coords[1]]; // GeoJSON is [lon, lat]
+                }
+                return coords.map(c => offsetCoords(c));
+            }
+            if (newFeature.geometry && newFeature.geometry.coordinates) {
+                newFeature.geometry.coordinates = offsetCoords(newFeature.geometry.coordinates);
+            }
+            return newFeature;
+        }
+
+        // ▼▼▼ 新しい関数を追加 ▼▼▼
+        // 気象データ(VZSA60.php)の経度をずらすヘルパー関数
+        function offsetWeatherFeature(feature, offset) {
+            const newFeature = JSON.parse(JSON.stringify(feature)); // 深いコピー
+            function offsetCoords(coords) {
+                // 単一の座標点 [lat, lon] の場合
+                if (Array.isArray(coords) && typeof coords[0] === 'number') {
+                    return [coords[0], coords[1] + offset]; // Leafletは[lat, lon]なので2番目をずらす
+                }
+                // 座標点の配列 [[lat1, lon1], [lat2, lon2]] の場合
+                return coords.map(c => offsetCoords(c));
+            }
+            if (newFeature.coordinates) {
+                newFeature.coordinates = offsetCoords(newFeature.coordinates);
+            }
+            return newFeature;
+        }
+        // ▲▲▲ ここまで ▲▲▲
+
+        Promise.all([
+            fetch('japan.geojson').then(res => res.ok ? res.json() : Promise.reject('japan.geojsonの読み込みに失敗')),
+            fetch('custom.geojson').then(res => res.ok ? res.json() : Promise.reject('custom.geojsonの読み込みに失敗')),
+            fetch('../proxy_xml/VZSA60.php').then(res => res.ok ? res.json() : Promise.reject('VZSA60.phpからのデータ取得に失敗'))
+        ])
+        .then(([japanData, customData, responseData]) => {
+            loader.style.display = 'none';
+
+            // 左右に複製したGeoJSONデータを作成
+            const customDataRight = { type: 'FeatureCollection', features: customData.features.map(f => offsetGeoJsonFeature(f, 360)) };
+            const japanDataRight = { type: 'FeatureCollection', features: japanData.features.map(f => offsetGeoJsonFeature(f, 360)) };
+            const customDataLeft = { type: 'FeatureCollection', features: customData.features.map(f => offsetGeoJsonFeature(f, -360)) };
+            const japanDataLeft = { type: 'FeatureCollection', features: japanData.features.map(f => offsetGeoJsonFeature(f, -360)) };
+
+            // 3つの世界（中央、右、左）を描画
+            L.geoJSON(customData, { style: customStyle }).addTo(map);
+            L.geoJSON(japanData, { style: japanStyle }).addTo(map);
+            L.geoJSON(customDataRight, { style: customStyle }).addTo(map);
+            L.geoJSON(japanDataRight, { style: japanStyle }).addTo(map);
+            L.geoJSON(customDataLeft, { style: customStyle }).addTo(map);
+            L.geoJSON(japanDataLeft, { style: japanStyle }).addTo(map);
+
+            if (responseData.error) {
+                alert('気象データ取得エラー: ' + responseData.error);
+                reportTimeEl.textContent = 'データ取得エラー';
+                return;
+            }
+
+            if (responseData.reportTime) {
+                const date = new Date(responseData.reportTime);
+                const formattedTime = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}時${String(date.getMinutes()).padStart(2, '0')}分 実況`;
+                reportTimeEl.textContent = formattedTime;
+            } else {
+                reportTimeEl.textContent = '時刻情報なし';
+            }
+
+            if(!responseData.features || responseData.features.length === 0) {
+                alert('描画可能な気象データが見つかりませんでした。');
+                return;
+            }
+
+            // ▼▼▼ ここから修正 ▼▼▼
+            // 元の天気データを描画
+            drawWeatherData(responseData.features);
+
+            // 左右に複製した天気データを描画
+            const featuresRight = responseData.features.map(f => offsetWeatherFeature(f, 360));
+            const featuresLeft = responseData.features.map(f => offsetWeatherFeature(f, -360));
+            drawWeatherData(featuresRight);
+            drawWeatherData(featuresLeft);
+            // ▲▲▲ ここまで修正 ▲▲▲
+        })
+        .catch(error => {
+            loader.style.display = 'none';
+            console.error('エラー:', error);
+            reportTimeEl.textContent = 'データ読み込み失敗';
+            alert('データの読み込みに失敗しました: ' + error);
+        });
+
+        function drawWeatherData(data) {
+            data.forEach(feature => {
+                if (feature.type === 'isobar') {
+                    const polyline = L.polyline(feature.coordinates, { color: 'grey', weight: 1.5, opacity: 0.8 }).addTo(map);
+                    polyline.bindTooltip(`${feature.pressure} hPa`, { sticky: true });
+                }
+                
+                if (feature.type === 'pressure_system') {
+                    let label = '', color = 'blue';
+                    if (feature.name === '高気圧') { label = 'H'; color = 'red'; }
+                    else if (feature.name === '低気圧') { label = 'L'; color = 'blue'; }
+                    else if (feature.name === '台風') { label = 'T'; color = 'red'; }
+                    else if (feature.name === '熱帯低気圧') { label = 'TD'; color = 'blue'; }
+
+                    const icon = L.divIcon({
+                        className: 'pressure-system-icon',
+                        html: `<div style="color:${color}; font-weight:bold; font-size:24px; text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">${label}</div>`,
+                        iconSize: [30, 30], iconAnchor: [15, 15]
+                    });
+                    L.marker(feature.coordinates, { icon: icon }).addTo(map)
+                     .bindPopup(`${feature.name}<br>中心気圧: ${feature.pressure} ${feature.unit}`);
+                }
+
+                if (feature.type === 'front') {
+                    let frontStyle = { weight: 3 };
+                    let decoratorSymbols = [];
+
+                    if (feature.name === '寒冷前線') {
+                        frontStyle.color = 'blue';
+                        decoratorSymbols.push({
+                            offset: '5px', repeat: '20px',
+                            symbol: L.Symbol.arrowHead({ pixelSize: 10, polygon: false, pathOptions: { stroke: true, color: 'blue', fillOpacity: 1, weight: frontStyle.weight } })
+                        });
+                    } else if (feature.name === '温暖前線') {
+                        frontStyle.color = 'red';
+                        const warmFrontIcon = L.divIcon({
+                            className: 'warm-front-icon',
+                            html: '<svg height="12" width="12"><circle cx="6" cy="6" r="5" stroke="red" stroke-width="2" fill="red" /></svg>',
+                            iconSize: [12, 12]
+                        });
+                        decoratorSymbols.push({
+                            offset: '10px', repeat: '25px',
+                            symbol: L.Symbol.marker({ markerOptions: { icon: warmFrontIcon, rotationAngle: 90, rotationOrigin: '6px 6px' } })
+                        });
+                    } else { 
+                        frontStyle.color = 'purple';
+                    }
+
+                    const frontLine = L.polyline(feature.coordinates, frontStyle).addTo(map);
+                    frontLine.bindPopup(feature.name);
+
+                    if (L.polylineDecorator && decoratorSymbols.length > 0) {
+                        L.polylineDecorator(frontLine, { patterns: decoratorSymbols }).addTo(map);
+                    }
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>

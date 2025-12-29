@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[134.4386056,34.1016278]},"properties":{"id":222549005,"name":"吉野川 右 16ｋ3石井町 六条大橋","name_kana":"","ofc_cd":88,"sys_id":2,"sys_cam_id":"22549009","pause":0,"date_type":0,"cam_kind":2,"own_cd":22549}}]}

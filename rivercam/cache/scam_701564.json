@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[140.733377,37.696353]},"properties":{"id":101793072,"name":"新田川（大森橋）","name_kana":"にいだがわ（おおもりはし）","ofc_cd":82,"sys_id":1,"sys_cam_id":"1793072","pause":0,"date_type":2,"cam_kind":4,"own_cd":1793}}]}

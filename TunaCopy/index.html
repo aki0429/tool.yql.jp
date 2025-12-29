@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>気象庁 津波情報（新形式対応）</title>
+    <style>
+        body {
+            font-family: 'Meiryo', 'メイリオ', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            background-color: #f4f7f9;
+            color: #333;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 400px;
+            background-color: #fff;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 15px 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #005a9e;
+            border-bottom: 2px solid #005a9e;
+            flex-shrink: 0;
+        }
+        #list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        .list-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .list-item:hover {
+            background-color: #f0f7ff;
+        }
+        .list-item.active {
+            background-color: #dbeeff;
+            border-left: 5px solid #007bff;
+            padding-left: 15px;
+        }
+        .list-item .title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #003366;
+        }
+        .list-item .time {
+            font-size: 14px;
+            color: #555;
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 25px;
+            overflow-y: auto;
+        }
+        h2, h3 {
+            color: #005a9e;
+            border-bottom: 2px solid #005a9e;
+            padding-bottom: 10px;
+        }
+        .button {
+             display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+        #toggle-full-text-btn { background-color: #6c757d; }
+        #toggle-full-text-btn:hover { background-color: #5a6268; }
+        #copy-button { background-color: #28a745; }
+        #copy-button:hover { background-color: #218838; }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 10px 20px;
+            flex-shrink: 0;
+        }
+        .loading { background-color: #ffc107; }
+        .error { background-color: #dc3545; color: white; }
+
+        #twitter-output-container { margin-top: 20px; }
+        .tweet-chunk {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        .tweet-chunk textarea {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+        .copy-chunk-btn {
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #1DA1F2;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+        .copy-chunk-btn:hover { background-color: #0d8ddb; }
+        #detail-container {
+            white-space: pre-wrap;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 200px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">津波情報リスト</div>
+        <div id="status-message" class="status loading">リストを読込中...</div>
+        <div id="list-container"></div>
+    </div>
+
+    <div class="main-content">
+        <h2>情報詳細</h2>
+        <div id="twitter-output-container"></div>
+        <button id="toggle-full-text-btn" class="button">全文を表示</button>
+        <pre id="detail-container" style="display:none;"></pre>
+        <button id="copy-button" class="button" style="display:none;">全文コピー</button>
+    </div>
+
+    <script>
+        const JMA_BASE_URL = 'https://www.jma.go.jp/bosai/tsunami/data/';
+        const listContainer = document.getElementById('list-container');
+        const detailContainer = document.getElementById('detail-container');
+        const statusMessage = document.getElementById('status-message');
+        const toggleBtn = document.getElementById('toggle-full-text-btn');
+        const copyBtn = document.getElementById('copy-button');
+
+        function formatDateTime(isoString) {
+            if (!isoString) return '---';
+            const date = new Date(isoString);
+            return date.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // ========= ここから修正箇所 =========
+        function formatDetailInfo(data) {
+            let text = `■ 発表元: ${data.Control.EditorialOffice}\n`;
+            text += `■ 情報名: ${data.Head.Title}\n`;
+            text += `■ 発表時刻: ${formatDateTime(data.Head.ReportDateTime)}\n`;
+            if (data.Head.Headline && data.Head.Headline.Text) {
+                text += `■ 概要: ${data.Head.Headline.Text}\n`;
+            }
+            if (data.Body.Earthquake && data.Body.Earthquake.length > 0) {
+                const eq = data.Body.Earthquake[0];
+                text += `\n--- 震源情報 ---\n`;
+                if (eq.Origin) {
+                    text += `発生時刻: ${formatDateTime(eq.Origin.ArrivalTime)}\n`;
+                    if (eq.Origin.Area) { text += `震源地: ${eq.Origin.Area.Name}\n`; }
+                }
+                if (eq.Magnitude) { text += `マグニチュード: ${eq.Magnitude.Value}\n`; }
+            }
+            if (data.Body.Tsunami && data.Body.Tsunami.Observation && data.Body.Tsunami.Observation.Item) {
+                text += `\n--- 津波観測情報 ---\n`;
+                data.Body.Tsunami.Observation.Item.forEach(item => {
+                    text += `\n▼ ${item.Area.Name}\n`;
+                    if (item.Station) {
+                        item.Station.forEach(st => {
+                            text += `  【${st.Name}】\n`;
+
+                            // FirstHeight（第1波）の情報をより詳細に表示
+                            if (st.FirstHeight) {
+                                if (st.FirstHeight.ArrivalTime) {
+                                    const initial = st.FirstHeight.Initial ? `(${st.FirstHeight.Initial})` : ''; // (押し)など
+                                    const condition = st.FirstHeight.Condition ? ` ${st.FirstHeight.Condition}` : ''; // 第１波の到達を確認 など
+                                    text += `    第1波到達: ${formatDateTime(st.FirstHeight.ArrivalTime)} ${initial}${condition}\n`;
+                                } else if (st.FirstHeight.Condition) {
+                                    text += `    第1波: ${st.FirstHeight.Condition}\n`; // 第１波識別不能 など
+                                }
+                            }
+                            
+                            // MaxHeight（最大波）の情報を表示（TsunamiHeightとValueの両方に対応）
+                            if (st.MaxHeight) {
+                                const height = st.MaxHeight.TsunamiHeight || st.MaxHeight.Value;
+                                if (height) {
+                                    const revise = st.MaxHeight.Revise ? ` [${st.MaxHeight.Revise}]` : ''; // [更新]など
+                                    text += `    最大波: ${height}m (観測時刻: ${formatDateTime(st.MaxHeight.DateTime)})${revise}\n`;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            if (data.Body.Tsunami && data.Body.Tsunami.Forecast && data.Body.Tsunami.Forecast.Item) {
+                text += `\n--- 津波予報 ---\n`;
+                data.Body.Tsunami.Forecast.Item.forEach(item => {
+                    text += `\n▼ ${item.Area.Name}\n`;
+                    if (item.Category && item.Category.Kind && item.Category.Kind.Name) {
+                        text += `  警報/注意報: ${item.Category.Kind.Name}\n`;
+                    }
+                    if (item.MaxHeight && item.MaxHeight.TsunamiHeight) {
+                        text += `  予想される高さ: ${item.MaxHeight.TsunamiHeight}m\n`;
+                    }
+                    if (item.FirstHeight && item.FirstHeight.ArrivalTime) {
+                        text += `  到達予想時刻: ${formatDateTime(item.FirstHeight.ArrivalTime)}\n`;
+                    }
+                });
+            }
+            if (data.Body.Text) { text += `\n--- 付加情報 ---\n${data.Body.Text}\n`; }
+            return text;
+        }
+        // ========= ここまで修正箇所 =========
+
+        function splitForTwitter(text) {
+            const PAGER_LENGTH = 8; 
+            const CHUNK_LENGTH = 140 - PAGER_LENGTH;
+            if (!text || text.trim() === '') { return []; }
+            const totalPages = Math.ceil(text.length / CHUNK_LENGTH);
+            const chunks = [];
+            for (let i = 0; i < totalPages; i++) {
+                const start = i * CHUNK_LENGTH;
+                const end = start + CHUNK_LENGTH;
+                const chunkText = text.substring(start, end);
+                const pager = ` (${i + 1}/${totalPages})`;
+                chunks.push(chunkText + pager);
+            }
+            return chunks;
+        }
+
+        function displayTwitterChunks(chunks) {
+            const outputContainer = document.getElementById('twitter-output-container');
+            outputContainer.innerHTML = ''; // 前回の内容をクリア
+
+            if (chunks.length === 0) { 
+                toggleBtn.style.display = 'none';
+                return;
+            } else {
+                 toggleBtn.style.display = 'block';
+            }
+
+            const header = document.createElement('h3');
+            header.textContent = 'Twitter投稿用';
+            outputContainer.appendChild(header);
+
+            chunks.forEach((chunk) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'tweet-chunk';
+
+                const textarea = document.createElement('textarea');
+                textarea.value = chunk;
+                textarea.rows = 5;
+                textarea.readOnly = true;
+                
+                const button = document.createElement('button');
+                button.textContent = 'コピー';
+                button.className = 'copy-chunk-btn';
+                button.onclick = () => {
+                    navigator.clipboard.writeText(chunk).then(() => {
+                        button.textContent = '完了!';
+                        setTimeout(() => { button.textContent = 'コピー'; }, 2000);
+                    });
+                };
+
+                wrapper.appendChild(textarea);
+                wrapper.appendChild(button);
+                outputContainer.appendChild(wrapper);
+            });
+        }
+        
+        async function fetchDetails(fileName, targetElement) {
+            document.querySelectorAll('.list-item.active').forEach(el => el.classList.remove('active'));
+            targetElement.classList.add('active');
+            
+            detailContainer.textContent = '詳細を読み込み中...';
+            displayTwitterChunks([]);
+            detailContainer.style.display = 'none';
+            copyBtn.style.display = 'none';
+            toggleBtn.textContent = '全文を表示';
+            
+            try {
+                const response = await fetch(JMA_BASE_URL + fileName);
+                if (!response.ok) throw new Error(`詳細取得エラー: ${response.status}`);
+                const data = await response.json();
+                
+                const fullText = formatDetailInfo(data);
+                detailContainer.textContent = fullText;
+
+                const chunks = splitForTwitter(fullText);
+                displayTwitterChunks(chunks);
+
+            } catch (error) {
+                console.error("fetchDetailsでエラー:", error);
+                const errorText = `詳細情報の読み込みに失敗しました。\n${error.message}`;
+                detailContainer.textContent = errorText;
+                displayTwitterChunks(splitForTwitter(errorText));
+            }
+        }
+
+        async function initialize() {
+            try {
+                const listResponse = await fetch(JMA_BASE_URL + 'list.json');
+                if (!listResponse.ok) throw new Error(`リスト取得エラー: ${listResponse.status}`);
+                const listData = await listResponse.json();
+                
+                statusMessage.style.display = 'none';
+                listContainer.innerHTML = '';
+                if(listData.length > 0) {
+                    listData.forEach((item, index) => {
+                        const div = document.createElement('div');
+                        div.className = 'list-item';
+                        div.innerHTML = `<div class="title">${item.ttl}</div><div class="time">${formatDateTime(item.rdt)} (${item.anm})</div>`;
+                        div.addEventListener('click', () => fetchDetails(item.json, div));
+                        listContainer.appendChild(div);
+                        if (index === 0) { fetchDetails(item.json, div); }
+                    });
+                } else {
+                     displayTwitterChunks([]);
+                     toggleBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("initializeでエラー:", error);
+                statusMessage.className = 'status error';
+                statusMessage.textContent = `エラー: ${error.message}`;
+            }
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = detailContainer.style.display === 'none';
+            detailContainer.style.display = isHidden ? 'block' : 'none';
+            copyBtn.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.textContent = isHidden ? '全文を隠す' : '全文を表示';
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = detailContainer.textContent;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => alert('全文をクリップボードにコピーしました！'))
+                .catch(err => alert('コピーに失敗しました。'));
+        });
+
+        initialize();
+    </script>
+</body>
+</html>

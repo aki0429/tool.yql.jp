@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>EWC台風進路図</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden;
+      font-family: "Noto Sans JP", sans-serif;
+      background: #000;
+    }
+    #map {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    }
+    #infobox {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 300px;
+      background-color: #111;
+      color: white;
+      padding: 15px;
+      z-index: 999;
+      font-size: 24px;
+      border-left: 2px solid #ff6c00;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+    #infobox h2 {
+      font-size: 28px;
+      margin: 0 0 15px 0;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+    }
+    #titlebox {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: rgba(17, 17, 17, 0.9);
+      color: white;
+      padding: 10px 20px;
+      z-index: 1000;
+      font-size: 28px;
+      font-weight: bold;
+      border-right: 2px solid #ff6c00;
+      border-bottom: 2px solid #ff6c00;
+      border-radius: 0 0 8px 0;
+      display: none;
+    }
+    .info-item {
+      margin-bottom: 15px;
+      border-left: 4px solid #ff6c00;
+      padding-left: 10px;
+    }
+    .info-item span {
+      display: block;
+    }
+    .leaflet_datetext {
+      color: white;
+      font-size: 13px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px black;
+    }
+    #typhoon-selector-container {
+        position: absolute;
+        bottom: 20px;
+        left: 10px;
+        z-index: 1000;
+        width: 280px;
+    }
+    #typhoon-selector {
+      width: 100%;
+      padding: 8px;
+      background-color: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 18px;
+    }
+    #context-menu {
+      position: absolute;
+      background-color: rgba(30, 30, 30, 0.95);
+      border: 1px solid #ff6c00;
+      border-radius: 5px;
+      padding: 5px 0;
+      z-index: 1001;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    .context-menu-item {
+      padding: 10px 20px;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .context-menu-item:hover {
+      background-color: #ff6c00;
+    }
+    .context-menu-separator {
+        border-top: 1px solid #555;
+        margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="titlebox"></div>
+  <div id="infobox">
+    <h2>EWC台風情報</h2>
+    <div class="info-item"><span>実況時刻:</span><span id="time">-</span></div>
+    <div class="info-item"><span>中心気圧:</span><span id="pressure">-</span></div>
+    <div class="info-item"><span>最大風速:</span><span id="wind">-</span></div>
+    <div class="info-item"><span>最大瞬間風速:</span><span id="gust">-</span></div>
+    <div class="info-item"><span>移動方向:</span><span id="direction">-</span></div>
+    <div class="info-item"><span>移動速度:</span><span id="speed">-</span></div>
+    <div class="info-item"><span>中心位置:</span><span id="location">-</span></div>
+  </div>
+  
+  <div id="typhoon-selector-container"></div>
+
+  <script>
+    var map = L.map('map', {
+      center: [36.65, 138.18],
+      zoom: 5,
+      zoomControl: false, 
+      scrollWheelZoom: true,
+      zoomSnap: 0.1,
+      zoomDelta: 0.1
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors © CartoDB',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    var allList = L.layerGroup().addTo(map);
+    var textList = L.layerGroup().addTo(map);
+
+    function drawTyphoon(forecast, spec) {
+        allList.clearLayers();
+        textList.clearLayers();
+
+        const titleBox = document.getElementById("titlebox");
+
+        if (!forecast || forecast.length < 2 || !spec || spec.length < 2) {
+            titleBox.style.display = 'none';
+            document.querySelector("#infobox h2").textContent = "台風情報なし";
+            document.getElementById("time").textContent = "-";
+            document.getElementById("pressure").textContent = "-";
+            document.getElementById("wind").textContent = "-";
+            document.getElementById("gust").textContent = "-";
+            document.getElementById("direction").textContent = "-";
+            document.getElementById("speed").textContent = "-";
+            document.getElementById("location").textContent = "-";
+            return;
+        }
+
+        const titleInfo = forecast[0];
+        const numberPart = parseInt(titleInfo.typhoonNumber.substring(2), 10);
+        
+        // ### 修正点 ### 名前の有無で表示を切り替える
+        const nameEn = titleInfo.name?.en;
+        const typhoonTitle = nameEn ? ` 台風${numberPart}号 (${nameEn})` : ` 台風${numberPart}号`;
+
+        titleBox.textContent = typhoonTitle;
+        titleBox.style.display = 'block';
+        document.querySelector("#infobox h2").textContent = "詳細情報";
+
+        const currentForecast = forecast.find(f => typeof f.part === 'object' && f.part.jp === "実況");
+        if (!currentForecast || !currentForecast.center) return;
+        
+        const center = currentForecast.center;
+        const track = currentForecast.track?.typhoon;
+        const preTrack = currentForecast.track?.preTyphoon;
+
+        var forecastBounds = L.latLngBounds([center]);
+        var galeBounds = null;
+
+        if (preTrack) L.polyline(preTrack, { color: "#00bfff", weight: 2, dashArray: "5,5" }).addTo(allList);
+        if (track) L.polyline(track, { color: "#00bfff", weight: 4 }).addTo(allList);
+
+        L.circleMarker(center, { radius: 8, fillColor: "#ff0000", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.9 }).addTo(allList);
+        L.marker(center, { icon: L.divIcon({ html: '<div class="leaflet_datetext">現在</div>', iconSize: [0, 0], iconAnchor: [-20, 10] }) }).addTo(textList);
+        
+        const storm = currentForecast.stormWarningArea?.arc?.[0];
+        if (storm && storm[1]) {
+            L.circle(center, { radius: storm[1], color: "#ff0000", fillColor: "#ff0000", weight: 0, fillOpacity: 0.2 }).addTo(allList);
+        }
+
+        const gale = currentForecast.galeWarningArea;
+        if (gale && gale.radius) {
+            L.circle(center, { radius: gale.radius, color: "#ffff00", fillColor: "#ffff00", weight: 0, fillOpacity: 0.15 }).addTo(allList);
+            
+            galeBounds = L.latLngBounds();
+            const latOffset = gale.radius / 111000;
+            const lngOffset = gale.radius / (111000 * Math.cos(center[0] * Math.PI / 180));
+            galeBounds.extend([center[0] - latOffset, center[1] - lngOffset]);
+            galeBounds.extend([center[0] + latOffset, center[1] + lngOffset]);
+        }
+
+        for (let i = 2; i < forecast.length; i++) {
+            const item = forecast[i];
+            if (!item || !item.center || !item.probabilityCircle) continue;
+            
+            const forecastCenter = item.center;
+            const probCircle = item.probabilityCircle;
+            const radius = probCircle.radius;
+
+            L.circle(forecastCenter, { radius: radius, color: "#ffffff", weight: 2, fillOpacity: 0 }).addTo(allList);
+
+            const tangentKey = Object.keys(probCircle).find(key => key.startsWith('tangent'));
+            if (tangentKey) {
+                const tangentData = probCircle[tangentKey];
+                L.polyline(tangentData[0], { color: "#ffffff", weight: 2, dashArray: "6 4" }).addTo(allList);
+                L.polyline(tangentData[1], { color: "#ffffff", weight: 2, dashArray: "6 4" }).addTo(allList);
+            }
+           
+            const latOffset = radius / 111000;
+            const lngOffset = radius / (111000 * Math.cos(forecastCenter[0] * Math.PI / 180));
+            forecastBounds.extend([forecastCenter[0] - latOffset, forecastCenter[1] - lngOffset]);
+            forecastBounds.extend([forecastCenter[0] + latOffset, forecastCenter[1] + lngOffset]);
+
+            const dt = new Date(item.validtime.JST);
+            const label = `${dt.getDate()}日${dt.getHours()}時`;
+            L.marker(forecastCenter, { icon: L.divIcon({ html: `<div class="leaflet_datetext">${label}</div>`, iconSize: [0, 0], iconAnchor: [-20, 10] }) }).addTo(textList);
+        }
+        
+        // ★★★ 修正箇所 ★★★
+        // 暴風域(galeBounds)と予報円(forecastBounds)の両方を考慮して表示範囲を決定
+        let targetBounds = L.latLngBounds(forecastBounds.getSouthWest(), forecastBounds.getNorthEast());
+        if (galeBounds) {
+            targetBounds.extend(galeBounds);
+        }
+        
+        const paddingMeters = 400000;
+        const centerLat = targetBounds.getCenter().lat;
+        const latOffset = paddingMeters / 111000;
+        const lngOffset = paddingMeters / (111000 * Math.cos(centerLat * Math.PI / 180));
+        const southWest = targetBounds.getSouthWest();
+        const northEast = targetBounds.getNorthEast();
+        const paddedSouthWest = L.latLng(southWest.lat - latOffset, southWest.lng - lngOffset);
+        const paddedNorthEast = L.latLng(northEast.lat + latOffset, northEast.lng + lngOffset);
+        const paddedBounds = L.latLngBounds(paddedSouthWest, paddedNorthEast);
+        map.fitBounds(paddedBounds);
+        
+        const currentSpec = spec.find(s => s.advancedHours === 0);
+        const info = {
+          time: currentForecast?.validtime?.JST?.replace("T", " ")?.slice(0, 16) || "-",
+          pressure: currentSpec?.pressure || "-",
+          wind: currentSpec?.maximumWind?.sustained?.["m/s"] || "-",
+          gust: currentSpec?.maximumWind?.gust?.["m/s"] || "-",
+          direction: currentSpec?.course || "-",
+          speed: currentSpec?.speed?.["km/h"] || "-",
+          location: currentSpec?.location || "-"
+        };
+        document.getElementById("time").textContent = info.time;
+        document.getElementById("pressure").textContent = info.pressure ? `${info.pressure} hPa` : "-";
+        document.getElementById("wind").textContent = info.wind ? `${info.wind} m/s` : "-";
+        document.getElementById("gust").textContent = info.gust ? `${info.gust} m/s` : "-";
+        document.getElementById("direction").textContent = info.direction;
+        document.getElementById("speed").textContent = info.speed ? `${info.speed} km/h` : "-";
+        document.getElementById("location").textContent = info.location;
+    }
+
+    async function loadTyphoon() {
+      try {
+        const listResponse = await fetch("https://www.jma.go.jp/bosai/typhoon/data/targetTc.json");
+        if (!listResponse.ok) throw new Error('台風リストの取得に失敗');
+        const list = await listResponse.json();
+
+        const selectorContainer = document.getElementById("typhoon-selector-container");
+        selectorContainer.innerHTML = ''; 
+
+        if (list.length === 0) {
+          drawTyphoon([], []);
+          return;
+        }
+
+        const selector = document.createElement('select');
+        selector.id = 'typhoon-selector';
+
+        const optionPromises = list.map(async (item) => {
+            const forecastResponse = await fetch(`https://www.jma.go.jp/bosai/typhoon/data/${item.tropicalCyclone}/forecast.json`);
+            const forecastData = await forecastResponse.json();
+            const numberPart = parseInt(forecastData[0].typhoonNumber.substring(2), 10);
+            
+            // ### 修正点 ###
+            // forecastData[0].name や forecastData[0].name.en が存在しない場合に対応
+            const name = forecastData[0]?.name?.en;
+            const option = document.createElement('option');
+            option.value = item.tropicalCyclone;
+            
+            // 名前の有無で表示テキストを切り替える
+            option.textContent = name ? `台風${numberPart}号 (${name})` : `台風${numberPart}号`;
+            
+            return option;
+        });
+
+        const options = await Promise.all(optionPromises);
+        options.forEach(option => selector.appendChild(option));
+        
+        selectorContainer.appendChild(selector);
+
+        const loadAndDrawTyphoon = async (tcId) => {
+          if (!tcId) {
+            drawTyphoon([], []);
+            return;
+          }
+          try {
+            const [forecast, spec] = await Promise.all([
+              fetch(`https://www.jma.go.jp/bosai/typhoon/data/${tcId}/forecast.json`).then(r => r.ok ? r.json() : Promise.reject('forecast取得失敗')),
+              fetch(`https://www.jma.go.jp/bosai/typhoon/data/${tcId}/specifications.json`).then(r => r.ok ? r.json() : Promise.reject('specifications取得失敗'))
+            ]);
+            drawTyphoon(forecast, spec);
+          } catch (error) {
+            console.error(`台風情報(${tcId})の読み込み中にエラーが発生しました:`, error);
+            drawTyphoon([], []);
+          }
+        };
+
+        selector.addEventListener('change', (event) => {
+          loadAndDrawTyphoon(event.target.value);
+        });
+
+        if (list.length > 0) {
+          loadAndDrawTyphoon(list[0].tropicalCyclone);
+        }
+
+      } catch (error) {
+        console.error("台風情報の読み込み中にエラーが発生しました:", error);
+        drawTyphoon([], []);
+      }
+    }
+
+    loadTyphoon();
+
+    const japanBounds = L.latLngBounds([[21, 122], [50, 159]]);  // 日本のおおよその範囲
+    const asiaBounds = L.latLngBounds([[-11, 70], [55, 230]]);  // アジアの表示範囲  
+    
+    let previousBounds = null;
+
+    function removeContextMenu() {
+        const existingMenu = document.getElementById('context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+    }
+
+    map.on('contextmenu', function(e) {
+        e.originalEvent.preventDefault();
+        removeContextMenu(); 
+
+        const menu = document.createElement('div');
+        menu.id = 'context-menu';
+        menu.style.left = e.containerPoint.x + 'px';
+        menu.style.top = e.containerPoint.y + 'px';
+
+        // 項目1: 日本全体を表示
+        const showJapanButton = document.createElement('div');
+        showJapanButton.textContent = '日本全体を表示';
+        showJapanButton.className = 'context-menu-item';
+        showJapanButton.onclick = function() {
+            // ★★★ 変更箇所: 最初の領域が未保存の場合のみ、現在の領域を保存 ★★★
+            if (previousBounds === null) {
+                previousBounds = map.getBounds();
+            }
+            map.fitBounds(japanBounds);
+            removeContextMenu();
+        };
+
+        // 項目2: アジア全体を表示
+        const showAsiaButton = document.createElement('div');
+        showAsiaButton.textContent = 'アジア全体を表示';
+        showAsiaButton.className = 'context-menu-item';
+        showAsiaButton.onclick = function() {
+            // ★★★ 変更箇所: 最初の領域が未保存の場合のみ、現在の領域を保存 ★★★
+            if (previousBounds === null) {
+                previousBounds = map.getBounds();
+            }
+            map.fitBounds(asiaBounds);
+            removeContextMenu();
+        };
+
+        menu.appendChild(showJapanButton);
+        menu.appendChild(showAsiaButton);
+
+        if (previousBounds) {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            menu.appendChild(separator);
+
+            const revertButton = document.createElement('div');
+            revertButton.textContent = '元の領域に戻す';
+            revertButton.className = 'context-menu-item';
+            revertButton.onclick = function() {
+                map.fitBounds(previousBounds);
+                removeContextMenu();
+            };
+            menu.appendChild(revertButton);
+        }
+        
+        map.getContainer().appendChild(menu);
+    });
+    
+    map.on('click', removeContextMenu);
+
+  </script>
+</body>
+</html>

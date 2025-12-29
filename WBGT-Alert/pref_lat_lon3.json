@@ -1,0 +1,50 @@
+[
+    {
+        "pref_name": "北海道",
+        "pref_capital": "札幌市",
+        "lat": 43.064359,
+        "lon": 141.347449
+    },
+    {
+        "pref_name": "宮城県",
+        "pref_capital": "仙台市",
+        "lat": 38.268737,
+        "lon": 140.872183
+    },
+    {
+        "pref_name": "東京都",
+        "pref_capital": "新宿区",
+        "lat": 35.689185,
+        "lon": 139.691648
+    },
+    {
+        "pref_name": "石川県",
+        "pref_capital": "金沢市",
+        "lat": 36.594729,
+        "lon": 136.62555
+    },
+    {
+        "pref_name": "大阪府",
+        "pref_capital": "大阪市",
+        "lat": 34.686492,
+        "lon": 135.518992
+    },
+    {
+        "pref_name": "福岡県",
+        "pref_capital": "福岡市",
+        "lat": 33.606767,
+        "lon": 130.418228
+    },
+    {
+        "pref_name": "沖縄県",
+        "pref_capital": "那覇市",
+        "lat": 26.211538,
+        "lon": 127.681115
+    },
+    {
+        "pref_name": "小笠原諸島",
+        "pref_capital": "父島",
+        "lat": 27.0941540,
+        "lon": 142.1919851
+    }
+]

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.133621,35.546191]},"properties":{"id":106657052,"name":"野田川_堂谷橋","name_kana":"","ofc_cd":86,"sys_id":1,"sys_cam_id":"6657052","pause":0,"date_type":0,"cam_kind":4,"own_cd":6657}}]}

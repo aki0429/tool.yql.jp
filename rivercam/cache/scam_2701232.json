@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[135.2115231,34.33955078]},"properties":{"id":106913117,"name":"茶屋川橋","name_kana":"ちゃやがわばし","ofc_cd":86,"sys_id":1,"sys_cam_id":"6913117","pause":0,"date_type":2,"cam_kind":4,"own_cd":6913}}]}

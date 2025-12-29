@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[138.9220682,35.7905558]},"properties":{"id":104865052,"name":"多摩川　高尾橋","name_kana":"","ofc_cd":83,"sys_id":1,"sys_cam_id":"4865052","pause":0,"date_type":2,"cam_kind":4,"own_cd":4865}}]}

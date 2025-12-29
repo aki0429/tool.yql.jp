@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[136.4918155,35.0325533]},"properties":{"id":106145055,"name":"海蔵川(向城橋)","name_kana":"かいぞうかわ(むかいじょはし)","ofc_cd":85,"sys_id":1,"sys_cam_id":"6145055","pause":0,"date_type":1,"cam_kind":4,"own_cd":6145}}]}
