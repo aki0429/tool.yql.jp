@@ -142,11 +142,35 @@
                 margin-top: 15px;
                 text-align: center;
             }
+            #loadingOverlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.75);
+                z-index: 30000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #loadingText {
+                background: #000000cc;
+                color: #fff;
+                border: 2px solid #fff;
+                border-radius: 10px;
+                padding: 20px 30px;
+                font-size: 1.4rem;
+                font-weight: 500;
+                font-family: 'Noto Sans JP', sans-serif;
+            }
             /* ▲▲▲ スタイル更新ここまで ▲▲▲ */
         </style>
     </head>
     <body>
         <div id="map"></div>
+        <div id="loadingOverlay">
+            <div id="loadingText">読み込み中… 0%</div>
+        </div>
+
 
         <div class="btns">
             <button id="slideshow_start_btn" class="button">ｽﾗｲﾄﾞｼｮｰ開始</button>
@@ -442,6 +466,79 @@
             });
             markers.addLayers(newMarkers);
         }
+        function updateLoadingProgress(done, total) {
+            const percent = Math.floor((done / total) * 100);
+            const text = document.getElementById('loadingText');
+            if (text) {
+                text.innerText = `読み込み中… ${percent}% (${done}/${total})`;
+            }
+        }
+        async function loadAllCameraData() {
+        const overlay = document.getElementById('loadingOverlay');
+
+        try {
+            const listResponse = await fetch('json_files_list.json');
+            if (!listResponse.ok) throw new Error('ファイルリストの取得に失敗');
+            const fileList = await listResponse.json();
+
+            const total = fileList.files.length;
+            let done = 0;
+
+            for (const file of fileList.files) {
+                const cachedData = cameraCache.get(file);
+                if (cachedData) {
+                    cachedData.forEach(cam => {
+                        pointLatLngList[cam.id] = { name: cam.name, lat: cam.lat, lng: cam.lng };
+                    });
+                    done++;
+                    updateLoadingProgress(done, total);
+                    continue;
+                }
+
+                try {
+                    const response = await fetch('cache/' + file);
+                    if (!response.ok) {
+                        done++;
+                        updateLoadingProgress(done, total);
+                        continue;
+                    }
+
+                    const data = await response.json();
+
+                    if (data.features && Array.isArray(data.features)) {
+                        const cameras = data.features
+                            .filter(f => f.properties && f.properties.id && f.geometry?.coordinates?.length === 2)
+                            .map(f => ({
+                                id: f.properties.id.toString(),
+                                name: f.properties.name || '',
+                                lat: f.geometry.coordinates[1],
+                                lng: f.geometry.coordinates[0]
+                            }));
+                        if (cameras.length > 0) {
+                            cameraCache.set(file, cameras);
+                            cameras.forEach(cam => {
+                                pointLatLngList[cam.id] = { name: cam.name, lat: cam.lat, lng: cam.lng };
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`ファイル ${file} の読み込みエラー:`, err);
+                }
+
+                done++;
+                updateLoadingProgress(done, total);
+            }
+
+            drawMap();
+
+        } catch (error) {
+            console.error('データ読み込みエラー:', error);
+        } finally {
+            if (overlay) overlay.style.display = 'none';
+        }
+    }
+
+
     </script>
     </body>
 </html>
