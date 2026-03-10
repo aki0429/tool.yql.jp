@@ -11,7 +11,7 @@
 /* -------- 定数 -------- */
 const JMA_LIST_URL     = "https://www.jma.go.jp/bosai/tsunami/data/list.json";
 const JMA_DATA_BASE    = "https://www.jma.go.jp/bosai/tsunami/data/";
-const AREA_GEOJSON_FILE = "area.geojson";
+const AREA_GEOJSON_DIR = "geojson";
 
 const WARNING_STYLES = {
     "大津波警報":                 { color: "#aa00aa", weight: 8 },
@@ -26,19 +26,217 @@ let currentJsonFile = "";
 let geoJsonData = null;
 let geoJsonLayers = [];
 let isTestMode = false;
-let areaCodeMap = {
-    "101": 0,    "102": 1,    "103": 2,    "104": 3,    "105": 4,    "106": 5,
-    "201": 6,    "202": 7,    "210": 8,    "211": 9,    "212": 10,    "220": 11,
-    "221": 12,    "222": 13,    "300": 14,    "301": 15,    "310": 16,    "320": 17,
-    "321": 18,    "322": 19,    "323": 20,    "330": 21,    "340": 22,    "341": 23,
-    "342": 24,    "343": 25,    "350": 26,    "351": 27,    "360": 28,    "361": 29,
-    "362": 30,    "363": 31,    "370": 32,    "371": 33,    "372": 34,    "380": 35,
-    "381": 36,    "382": 37,    "383": 38,    "384": 39,    "385": 40,    "386": 41,
-    "387": 42,    "388": 43,    "389": 44,    "390": 45,    "391": 46,    "400": 47,
-    "401": 48,    "402": 49,    "403": 50,    "404": 51,    "405": 52,    "406": 53,
-    "407": 54,    "408": 55,    "409": 56,    "410": 57,    "411": 58,    "412": 59,
-    "413": 60,    "414": 61,    "415": 62,    "416": 63
-};
+let isDebugMode = false;
+let areaGeoStatus = {};
+let debugHighlightLayers = [];
+const AREA_LIST = [
+    { code: "100", name: "北海道太平洋沿岸東部" },
+    { code: "101", name: "北海道太平洋沿岸中部" },
+    { code: "102", name: "北海道太平洋沿岸西部" },
+    { code: "110", name: "北海道日本海沿岸北部" },
+    { code: "111", name: "北海道日本海沿岸南部" },
+    { code: "120", name: "オホーツク海沿岸" },
+    { code: "200", name: "青森県日本海沿岸" },
+    { code: "201", name: "青森県太平洋沿岸" },
+    { code: "202", name: "陸奥湾" },
+    { code: "210", name: "岩手県" },
+    { code: "220", name: "宮城県" },
+    { code: "230", name: "秋田県" },
+    { code: "240", name: "山形県" },
+    { code: "250", name: "福島県" },
+    { code: "300", name: "茨城県" },
+    { code: "310", name: "千葉県九十九里・外房" },
+    { code: "311", name: "千葉県内房" },
+    { code: "312", name: "東京湾内湾" },
+    { code: "320", name: "伊豆諸島" },
+    { code: "321", name: "小笠原諸島" },
+    { code: "330", name: "相模湾・三浦半島" },
+    { code: "340", name: "新潟県上中下越" },
+    { code: "341", name: "佐渡" },
+    { code: "350", name: "富山県" },
+    { code: "360", name: "石川県能登" },
+    { code: "361", name: "石川県加賀" },
+    { code: "370", name: "福井県" },
+    { code: "380", name: "静岡県" },
+    { code: "390", name: "愛知県外海" },
+    { code: "391", name: "伊勢・三河湾" },
+    { code: "400", name: "三重県南部" },
+    { code: "500", name: "京都府" },
+    { code: "510", name: "大阪府" },
+    { code: "520", name: "兵庫県北部" },
+    { code: "521", name: "兵庫県瀬戸内海沿岸" },
+    { code: "522", name: "淡路島南部" },
+    { code: "530", name: "和歌山県" },
+    { code: "540", name: "鳥取県" },
+    { code: "550", name: "島根県出雲・石見" },
+    { code: "551", name: "隠岐" },
+    { code: "560", name: "岡山県" },
+    { code: "570", name: "広島県" },
+    { code: "580", name: "徳島県" },
+    { code: "590", name: "香川県" },
+    { code: "600", name: "愛媛県宇和海沿岸" },
+    { code: "601", name: "愛媛県瀬戸内海沿岸" },
+    { code: "610", name: "高知県" },
+    { code: "700", name: "山口県日本海沿岸" },
+    { code: "701", name: "山口県瀬戸内海沿岸" },
+    { code: "710", name: "福岡県瀬戸内海沿岸" },
+    { code: "711", name: "福岡県日本海沿岸" },
+    { code: "712", name: "有明・八代海" },
+    { code: "720", name: "佐賀県北部" },
+    { code: "730", name: "長崎県西方" },
+    { code: "731", name: "壱岐・対馬" },
+    { code: "740", name: "熊本県天草灘沿岸" },
+    { code: "750", name: "大分県瀬戸内海沿岸" },
+    { code: "751", name: "大分県豊後水道沿岸" },
+    { code: "760", name: "宮崎県" },
+    { code: "770", name: "鹿児島県東部" },
+    { code: "771", name: "種子島・屋久島地方" },
+    { code: "772", name: "奄美群島・トカラ列島" },
+    { code: "773", name: "鹿児島県西部" },
+    { code: "800", name: "沖縄本島地方" },
+    { code: "801", name: "大東島地方" },
+    { code: "802", name: "宮古島・八重山地方" }
+];
+
+function normalizeToFeatures(rawData) {
+    if (!rawData) return [];
+    if (rawData.type === "FeatureCollection" && Array.isArray(rawData.features)) {
+        return rawData.features;
+    }
+    if (rawData.type === "Feature") {
+        return [rawData];
+    }
+    if (rawData.type === "GeometryCollection" && Array.isArray(rawData.geometries)) {
+        return rawData.geometries.map(geom => ({
+            type: "Feature",
+            properties: {},
+            geometry: geom
+        }));
+    }
+    return [];
+}
+
+function setDebugMode(enabled) {
+    isDebugMode = enabled;
+    const panel = document.getElementById("debug-panel");
+    if (!panel) return;
+    if (enabled) {
+        panel.classList.remove("is-hidden");
+    } else {
+        panel.classList.add("is-hidden");
+    }
+}
+
+function clearDebugHighlight() {
+    debugHighlightLayers.forEach(layer =>
+        maps.forEach(map => {
+            if (map.hasLayer(layer)) map.removeLayer(layer);
+        })
+    );
+    debugHighlightLayers = [];
+}
+
+function highlightAreaByCode(code) {
+    if (!geoJsonData || !code) return;
+    clearDebugHighlight();
+    const features = geoJsonData.features.filter(
+        feature => feature.properties?.code === code
+    );
+    if (features.length === 0) return;
+
+    maps.forEach(map => {
+        const layer = L.geoJson(features, {
+            style: {
+                color: "#00ffd1",
+                weight: 6,
+                opacity: 1,
+                fillColor: "#00ffd1",
+                fillOpacity: 0.15
+            }
+        });
+        layer.addTo(map);
+        debugHighlightLayers.push(layer);
+    });
+}
+
+function updateDebugAreaInfo(code) {
+    const statusEl = document.getElementById("debug-area-status");
+    const infoEl = document.getElementById("debug-area-info");
+    if (!statusEl || !infoEl) return;
+
+    const status = areaGeoStatus[code];
+    if (!status) {
+        statusEl.textContent = "未登録";
+        infoEl.textContent = "エリア情報が見つかりません。";
+        return;
+    }
+
+    if (status.loaded) {
+        statusEl.textContent = `割当済み: OK (features: ${status.featureCount})`;
+    } else if (status.status === "missing") {
+        statusEl.textContent = "未割当: ファイルなし";
+    } else if (status.status === "empty") {
+        statusEl.textContent = "未割当: feature 0";
+    } else {
+        statusEl.textContent = "未割当: 読み込み失敗";
+    }
+
+    infoEl.textContent = `コード: ${status.code} / 名称: ${status.name} / ファイル: ${status.filePath}`;
+}
+
+function setupDebugPanel() {
+    const select = document.getElementById("debug-area-select");
+    if (!select || select.dataset.ready === "true") return;
+
+    AREA_LIST.forEach(area => {
+        const option = document.createElement("option");
+        option.value = area.code;
+        option.textContent = `${area.name} [${area.code}]`;
+        select.appendChild(option);
+    });
+
+    select.addEventListener("change", () => {
+        updateDebugAreaInfo(select.value);
+    });
+
+    const btnHighlight = document.getElementById("debug-highlight");
+    if (btnHighlight) {
+        btnHighlight.addEventListener("click", () => {
+            highlightAreaByCode(select.value);
+        });
+    }
+
+    const btnClear = document.getElementById("debug-clear-highlight");
+    if (btnClear) {
+        btnClear.addEventListener("click", () => {
+            clearDebugHighlight();
+        });
+    }
+
+    const btnLoadTest = document.getElementById("debug-load-test");
+    if (btnLoadTest) {
+        btnLoadTest.addEventListener("click", () => {
+            loadDebugJson();
+        });
+    }
+
+    const btnExitTest = document.getElementById("debug-exit-test");
+    if (btnExitTest) {
+        btnExitTest.addEventListener("click", () => {
+            exitTestMode();
+        });
+    }
+
+    const btnClose = document.getElementById("debug-close");
+    if (btnClose) {
+        btnClose.addEventListener("click", () => {
+            setDebugMode(false);
+        });
+    }
+
+    select.dataset.ready = "true";
+    updateDebugAreaInfo(select.value || AREA_LIST[0]?.code);
+}
 
 /* -------- Leaflet オプション & マップ -------- */
 const mapOpts = {
@@ -47,6 +245,7 @@ const mapOpts = {
     dragging: false,
     scrollWheelZoom: false,
     doubleClickZoom: false,
+    preferCanvas: true,
     background: "#002255"
 };
 
@@ -54,6 +253,17 @@ const mapMain      = L.map("map-main", mapOpts).setView([38.0, 137.0], 5.5);
 const mapOkinawa   = L.map("map-okinawa", mapOpts).setView([25.5710691, 127.1698242], 5.2);
 const mapOgasawara = L.map("map-ogasawara", mapOpts).setView([27.1068333, 142.1739444], 7.5);
 const maps = [mapMain, mapOkinawa, mapOgasawara];
+
+const refreshMapSizes = () => {
+    maps.forEach(map => map.invalidateSize());
+};
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(refreshMapSizes, 120);
+});
+window.addEventListener("load", refreshMapSizes);
 
 /* ---------------------------------------------------------
    fetch via proxy wrapper
@@ -80,39 +290,75 @@ async function fetchViaProxy(url) {
 --------------------------------------------------------- */
 async function initApp() {
     const msg = document.getElementById("monitor-msg");
-    if (msg) msg.innerText = "Loading GeoJSON...";
+    if (msg) msg.innerText = `Loading ${AREA_GEOJSON_DIR}...`;
 
     try {
-        const areaRes = await fetch(AREA_GEOJSON_FILE);
-        const rawData = await areaRes.json();
-        
-        // GeometryCollection を Feature Collection に変換
-        if (rawData.type === "GeometryCollection") {
-            geoJsonData = {
-                type: "FeatureCollection",
-                features: rawData.geometries.map((geom, index) => {
-                    // コードを逆引き
-                    let code = null;
-                    for (const [areaCode, idx] of Object.entries(areaCodeMap)) {
-                        if (idx === index) {
-                            code = areaCode;
-                            break;
-                        }
+        areaGeoStatus = {};
+        const loaded = await Promise.all(
+            AREA_LIST.map(async area => {
+                const filePath = `${AREA_GEOJSON_DIR}/${area.name}.geojson`;
+                try {
+                    const res = await fetch(filePath);
+                    if (!res.ok) {
+                        areaGeoStatus[area.code] = {
+                            code: area.code,
+                            name: area.name,
+                            filePath: filePath,
+                            loaded: false,
+                            featureCount: 0,
+                            status: "missing"
+                        };
+                        console.warn("GeoJSON not found:", filePath, res.status);
+                        return [];
                     }
-                    return {
-                        type: "Feature",
-                        properties: { code: code },
-                        geometry: geom
+                    const raw = await res.json();
+                    const features = normalizeToFeatures(raw).map(feature => ({
+                        ...feature,
+                        properties: {
+                            ...(feature.properties || {}),
+                            code: area.code,
+                            name: area.name
+                        }
+                    }));
+                    areaGeoStatus[area.code] = {
+                        code: area.code,
+                        name: area.name,
+                        filePath: filePath,
+                        loaded: features.length > 0,
+                        featureCount: features.length,
+                        status: features.length > 0 ? "ok" : "empty"
                     };
-                })
-            };
-            console.log("GeoJSON converted to FeatureCollection:", geoJsonData.features.length, "features");
-        } else {
-            geoJsonData = rawData;
+                    return features;
+                } catch (e) {
+                    areaGeoStatus[area.code] = {
+                        code: area.code,
+                        name: area.name,
+                        filePath: filePath,
+                        loaded: false,
+                        featureCount: 0,
+                        status: "error"
+                    };
+                    console.error("GeoJSON load error:", filePath, e);
+                    return [];
+                }
+            })
+        );
+        const features = loaded.flat();
+        if (features.length === 0) {
+            throw new Error("No area GeoJSON features loaded.");
         }
+        geoJsonData = { type: "FeatureCollection", features };
+        console.log("GeoJSON loaded from folder:", features.length, "features");
+        setupDebugPanel();
     } catch (e) {
-        console.error("Failed to load area.geojson:", e);
-        if (msg) msg.innerText = "area.geojson load error";
+        console.error(`Failed to load ${AREA_GEOJSON_DIR}:`, e);
+        if (msg) msg.innerText = `${AREA_GEOJSON_DIR} load error`;
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("test")) {
+        await loadDebugJson();
         return;
     }
 
@@ -326,22 +572,12 @@ function exitTestMode() {
    - HTML 側に #debug-menu と #menu-load-test があること
 --------------------------------------------------------- */
 document.addEventListener("contextmenu", function(e) {
-    // 条件付きで無効化する場合はここに追加 (例: ctrl 押下で無効)
+    // 右クリックでデバッグモードを開く
     e.preventDefault();
     const menu = document.getElementById("debug-menu");
-    if (!menu) return;
-    menu.style.display = "block";
-    // ページ外にはみ出さないように微調整
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-    const menuW = menu.offsetWidth || 220;
-    const menuH = menu.offsetHeight || 40;
-    let left = e.pageX;
-    let top = e.pageY;
-    if (left + menuW > winW) left = winW - menuW - 8;
-    if (top + menuH > winH) top = winH - menuH - 8;
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
+    if (menu) menu.style.display = "none";
+    setDebugMode(true);
+    setupDebugPanel();
 });
 
 document.addEventListener("click", function() {

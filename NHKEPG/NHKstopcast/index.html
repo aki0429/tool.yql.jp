@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NHK 放送休止情報一覧</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>NHK 放送休止情報一覧</h1>
+    <p class="subtitle">全国NHK放送局の放送休止スケジュールをまとめて表示</p>
+    <div class="controls">
+      <div class="filter-group">
+        <label for="regionFilter">地域:</label>
+        <select id="regionFilter">
+          <option value="all">すべて</option>
+          <option value="hokkaido">北海道</option>
+          <option value="tohoku">東北</option>
+          <option value="kanto">関東・甲信越</option>
+          <option value="tokai">東海・北陸</option>
+          <option value="kinki">近畿</option>
+          <option value="chugoku">中国</option>
+          <option value="shikoku">四国</option>
+          <option value="kyushu">九州・沖縄</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="channelFilter">放送波:</label>
+        <select id="channelFilter">
+          <option value="all">すべて</option>
+          <option value="総合">総合</option>
+          <option value="Eテレ">Eテレ</option>
+          <option value="ラジオ">ラジオ第1</option>
+          <option value="FM">FM</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>
+          <input type="checkbox" id="todayOnly"> 今日の休止のみ
+        </label>
+      </div>
+      <button id="reloadBtn" type="button">🔄 再取得</button>
+    </div>
+    <div id="status" class="status">読み込み中...</div>
+  </header>
+
+  <main>
+    <div id="summary" class="summary"></div>
+    <div id="results" class="results"></div>
+  </main>
+
+  <footer>
+    <p>データ出典: <a href="https://www.nhk.or.jp/" target="_blank">NHK</a> 各放送局 放送休止のお知らせ</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -13,6 +13,19 @@
             <canvas id="map-canvas" class="hidden"></canvas>
             <div id="intensity-display" class="hidden"></div>
         </div>
+        
+        <!-- EEW警報専用レイアウト -->
+        <div id="eew-layout" class="hidden">
+            <div class="eew-header">緊急地震速報（気象庁）</div>
+            <div class="eew-content">
+                <div class="eew-map-container">
+                    <canvas id="eew-map-canvas"></canvas>
+                </div>
+                <div class="eew-areas-container">
+                    <div id="eew-areas-list"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="status-log">Loading data...</div>

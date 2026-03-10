@@ -82,6 +82,8 @@ body {
     border: 2px solid #fff;
     background-color: #002255;
     overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
 }
 
 .inset-label {
@@ -94,28 +96,41 @@ body {
     pointer-events: none;
     background: rgba(0,0,0,0.5);
     padding: 2px 5px;
+    border-bottom-right-radius: 6px;
 }
 
 /* --- Okinawa --- */
 #inset-okinawa {
-    top: 40px;
-    left: 620px;
-    width: 340px;
-    height: 220px;
+    top: 20px;
+    left: 20px;
+    width: clamp(260px, 26vw, 420px);
+    height: clamp(180px, 19vw, 280px);
 }
 
 /* --- Ogasawara --- */
 #inset-ogasawara {
-    bottom: 260px;
-    right: 620px;
-    width: 300px;
-    height: 300px;
+    bottom: 20px;
+    right: 20px;
+    width: clamp(240px, 24vw, 380px);
+    height: clamp(240px, 24vw, 380px);
 }
 
 #map-okinawa,
 #map-ogasawara {
     width: 100%;
     height: 100%;
+}
+
+@media (max-width: 900px) {
+    #inset-okinawa {
+        top: 12px;
+        left: 12px;
+    }
+
+    #inset-ogasawara {
+        bottom: 12px;
+        right: 12px;
+    }
 }
 
 /* =========================================
@@ -175,4 +190,96 @@ body {
 }
 #debug-menu li:hover {
     background: rgba(255, 255, 255, 0.12);
+}
+
+/* =========================================
+   Debug Panel
+========================================= */
+.is-hidden {
+    display: none;
+}
+
+.debug-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100000;
+    width: 320px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #cfcfcf;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    color: #ffffff;
+    font-size: 13px;
+}
+
+.debug-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.debug-title {
+    font-weight: bold;
+}
+
+.debug-panel-header button {
+    background: transparent;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.debug-panel-body {
+    padding: 12px;
+}
+
+.debug-label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+#debug-area-select {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #9bb2d1;
+    background: #041533;
+    color: #ffffff;
+}
+
+.debug-area-status {
+    margin-top: 8px;
+    font-weight: bold;
+}
+
+.debug-area-info {
+    margin-top: 6px;
+    color: #cfd8e3;
+    line-height: 1.4;
+}
+
+.debug-panel-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.debug-panel-actions button {
+    background: #10305e;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.debug-panel-actions button:hover {
+    background: #17417d;
 }

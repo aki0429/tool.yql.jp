@@ -106,7 +106,7 @@ function fetchEarthquakeData() {
             if (depth === -1 || magnitude === 'ー.ー') {
                 return '震源及びマグニチュードは現在気象庁で精査中です';
             }
-            const depthMessage = depth === 0 ? '浅い' : `${depth} km`;
+            const depthMessage = depth === 0 ? 'ごく浅い' : `${depth} km`;
             return `震源の深さは${depthMessage}、地震の規模を示すマグニチュードは${magnitude}と推定されています。`;
         }
 

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>河川カメラ for MiyakoCam・アッキー</title>
+        <meta charset="UTF-8" lang="ja">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+        <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="loader">
+            <div class="spinner"></div>
+            <p>データを読み込み中...</p>
+            <div id="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+            <p id="status-text">0 / 0 ファイル (0%)</p>
+        </div>
+
+
+        <div class="btns">
+            <button id="slideshow_start_btn" class="button">ｽﾗｲﾄﾞｼｮｰ開始</button>
+            <button id="slideshow_edit_btn" class="button">ｽﾗｲﾄﾞｼｮｰ編集</button>
+        </div>
+
+        <div id="div_slideshow_edit" class="modal">
+            <div class="modal-content">
+                <span id="close_div_slideshow_edit" class="modal-close">&times;</span>
+                <h2>スライドショーの編集</h2>
+                <p>リストからカメラを削除できます。</p>
+                <ul id="slideshow-edit-list">
+                    </ul>
+            </div>
+        </div>
+        
+        <div id="photoModal" class="modal">
+             <div class="modal-content">
+                <span id="close_photoModal" class="modal-close">&times;</span>
+                <div id="photoModal_photo">
+                    <div id="photoModal_photo_name">カメラ観測点名</div>
+                    <img src="https://placehold.jp/640x480.png" id="photoModal_photo_img">
+                    <label id="slideshow_select_label">
+                        <input type="checkbox" id="slideshow_select_checkbox"> ｽﾗｲﾄﾞｼｮｰに保存
+                    </label>
+                </div>
+            </div>
+        </div>
+
+    <script src="script.js"></script>
+    </body>
+</html>

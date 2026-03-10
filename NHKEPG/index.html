@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NHK 番組表ビューア</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="toolbar">
+      <h1>NHK 番組表</h1>
+      <div class="controls">
+        <label>
+          日付
+          <input id="dateInput" type="date" />
+        </label>
+        <button id="reloadBtn" type="button">再取得</button>
+      </div>
+      <div id="groupFilter" class="group-filter" aria-label="表示区分選択"></div>
+      <p id="status" class="status">初期化中...</p>
+      <div id="summary" class="summary"></div>
+      <div id="legend" class="legend"></div>
+    </header>
+
+    <section id="guide" class="guide" aria-live="polite"></section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

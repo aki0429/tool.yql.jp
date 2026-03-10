@@ -27,113 +27,72 @@
           "Type": "警報等情報要素／津波警報・注意報・予報"
         },
         "Item": [
-          { "Area": { "Name": "オホーツク海沿岸", "Code": "101" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "北海道太平洋沿岸東部", "Code": "102" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-          { "Area": { "Name": "北海道太平洋沿岸中部", "Code": "103" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "北海道太平洋沿岸西部", "Code": "104" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" },"LastKind": { "Name": "津波なし","Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "北海道日本海沿岸北部", "Code": "105" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" },"LastKind": { "Name": "津波なし","Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "北海道日本海沿岸南部", "Code": "106" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" },"LastKind": { "Name": "津波なし","Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "陸奥湾", "Code": "201" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" },"LastKind": { "Name": "津波なし","Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "青森県日本海沿岸", "Code": "202" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" },"LastKind": { "Name": "津波なし","Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "青森県太平洋沿岸", "Code": "210" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }, "LastKind": { "Name": "津波なし","Code": "00" }}, "MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "岩手県", "Code": "211" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }, "LastKind": { "Name": "津波なし","Code": "00" }}, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-          { "Area": { "Name": "宮城県", "Code": "212" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }, "LastKind": { "Name": "津波なし","Code": "00" }}, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "福島県", "Code": "220" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "茨城県", "Code": "221" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-          { "Area": { "Name": "千葉県九十九里・外房", "Code": "222" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "千葉県内房", "Code": "300" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "東京湾内湾", "Code": "301" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "伊豆諸島", "Code": "310" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "小笠原諸島", "Code": "320" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "相模湾・三浦半島", "Code": "321" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-          { "Area": { "Name": "静岡県", "Code": "322" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "愛知県外海", "Code": "323" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "伊勢・三河湾", "Code": "330" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "三重県南部", "Code": "340" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-          { "Area": { "Name": "新潟県上中下越", "Code": "341" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "佐渡", "Code": "342" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-          { "Area": { "Name": "富山県", "Code": "343" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "石川県能登", "Code": "350" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-          { "Area": { "Name": "石川県加賀", "Code": "351" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "福井県", "Code": "360" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "京都府", "Code": "361" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-          { "Area": { "Name": "兵庫県北部", "Code": "362" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "兵庫県瀬戸内海沿岸", "Code": "363" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "淡路島南部", "Code": "370" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "大阪府", "Code": "371" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "和歌山県", "Code": "372" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "鳥取県", "Code": "380" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "島根県出雲・石見", "Code": "381" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "隠岐", "Code": "382" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "岡山県", "Code": "383" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "広島県", "Code": "384" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "香川県", "Code": "385" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "愛媛県瀬戸内海沿岸", "Code": "386" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "愛媛県宇和海沿岸", "Code": "387" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "徳島県", "Code": "388" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "高知県", "Code": "389" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "山口県瀬戸内海沿岸", "Code": "390" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-          { "Area": { "Name": "山口県日本海沿岸", "Code": "391" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "福岡県瀬戸内海沿岸", "Code": "400" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "福岡県日本海沿岸", "Code": "401" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-          { "Area": { "Name": "佐賀県北部", "Code": "402" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "長崎県西方", "Code": "403" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "壱岐・対馬", "Code": "404" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "有明・八代海", "Code": "405" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "熊本県天草灘沿岸", "Code": "406" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "大分県瀬戸内海沿岸", "Code": "407" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "大分県豊後水道沿岸", "Code": "408" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "宮崎県", "Code": "409" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "鹿児島県東部", "Code": "410" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-          { "Area": { "Name": "鹿児島県西部", "Code": "411" }, "Category": { "Kind": { "Name": "津波注意報","Code": "53" }},"MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
-
-          { "Area": { "Name": "種子島・屋久島地方", "Code": "412" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "奄美群島・トカラ列島", "Code": "413" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } },
-
-          { "Area": { "Name": "沖縄本島地方", "Code": "414" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）","Code": "54" }},"MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
-
-          { "Area": { "Name": "宮古島・八重山地方", "Code": "415" }, "Category": { "Kind": { "Name": "津波警報","Code": "52" }},"MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
-
-          { "Area": { "Name": "大東島地方", "Code": "416" }, "Category": { "Kind": { "Name": "大津波警報","Code": "51" }},"MaxHeight": { "TsunamiHeight": "3m以上" } }
+          { "Area": { "Name": "北海道太平洋沿岸東部", "Code": "100" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "北海道太平洋沿岸中部", "Code": "101" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "北海道太平洋沿岸西部", "Code": "102" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "北海道日本海沿岸北部", "Code": "110" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "北海道日本海沿岸南部", "Code": "111" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "オホーツク海沿岸", "Code": "120" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "青森県日本海沿岸", "Code": "200" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "青森県太平洋沿岸", "Code": "201" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "陸奥湾", "Code": "202" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "岩手県", "Code": "210" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "宮城県", "Code": "220" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "秋田県", "Code": "230" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "山形県", "Code": "240" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "福島県", "Code": "250" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "茨城県", "Code": "300" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "千葉県九十九里・外房", "Code": "310" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "千葉県内房", "Code": "311" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "東京湾内湾", "Code": "312" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "伊豆諸島", "Code": "320" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "小笠原諸島", "Code": "321" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "相模湾・三浦半島", "Code": "330" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "新潟県上中下越", "Code": "340" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "佐渡", "Code": "341" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "富山県", "Code": "350" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "石川県能登", "Code": "360" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "石川県加賀", "Code": "361" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "福井県", "Code": "370" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "静岡県", "Code": "380" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "愛知県外海", "Code": "390" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "伊勢・三河湾", "Code": "391" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "三重県南部", "Code": "400" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "京都府", "Code": "500" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "大阪府", "Code": "510" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "兵庫県北部", "Code": "520" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "兵庫県瀬戸内海沿岸", "Code": "521" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "淡路島南部", "Code": "522" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "和歌山県", "Code": "530" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "鳥取県", "Code": "540" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "島根県出雲・石見", "Code": "550" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "隠岐", "Code": "551" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "岡山県", "Code": "560" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "広島県", "Code": "570" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "徳島県", "Code": "580" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "香川県", "Code": "590" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "愛媛県宇和海沿岸", "Code": "600" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "愛媛県瀬戸内海沿岸", "Code": "601" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "高知県", "Code": "610" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "山口県日本海沿岸", "Code": "700" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "山口県瀬戸内海沿岸", "Code": "701" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "福岡県瀬戸内海沿岸", "Code": "710" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "福岡県日本海沿岸", "Code": "711" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "有明・八代海", "Code": "712" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "佐賀県北部", "Code": "720" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "長崎県西方", "Code": "730" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "壱岐・対馬", "Code": "731" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "熊本県天草灘沿岸", "Code": "740" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "大分県瀬戸内海沿岸", "Code": "750" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "大分県豊後水道沿岸", "Code": "751" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "宮崎県", "Code": "760" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "鹿児島県東部", "Code": "770" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "種子島・屋久島地方", "Code": "771" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "奄美群島・トカラ列島", "Code": "772" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } },
+          { "Area": { "Name": "鹿児島県西部", "Code": "773" }, "Category": { "Kind": { "Name": "津波注意報", "Code": "53" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "0.2m以上1m未満" } },
+          { "Area": { "Name": "沖縄本島地方", "Code": "800" }, "Category": { "Kind": { "Name": "津波予報（若干の海面変動）", "Code": "54" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "若干の海面変動" } },
+          { "Area": { "Name": "大東島地方", "Code": "801" }, "Category": { "Kind": { "Name": "大津波警報", "Code": "51" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "3m以上" } },
+          { "Area": { "Name": "宮古島・八重山地方", "Code": "802" }, "Category": { "Kind": { "Name": "津波警報", "Code": "52" }, "LastKind": { "Name": "津波なし", "Code": "00" } }, "MaxHeight": { "TsunamiHeight": "1m以上3m未満" } }
         ]
       }
     },

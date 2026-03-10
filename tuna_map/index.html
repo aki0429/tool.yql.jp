@@ -58,6 +58,28 @@
     </div>
 
     <!-- ============================================================
+         デバッグパネル
+    ============================================================ -->
+    <div id="debug-panel" class="debug-panel is-hidden">
+        <div class="debug-panel-header">
+            <div class="debug-title">デバッグモード</div>
+            <button id="debug-close" type="button">閉じる</button>
+        </div>
+        <div class="debug-panel-body">
+            <label class="debug-label" for="debug-area-select">予報区</label>
+            <select id="debug-area-select"></select>
+            <div id="debug-area-status" class="debug-area-status"></div>
+            <div id="debug-area-info" class="debug-area-info"></div>
+            <div class="debug-panel-actions">
+                <button id="debug-highlight" type="button">選択エリア強調</button>
+                <button id="debug-clear-highlight" type="button">強調解除</button>
+                <button id="debug-load-test" type="button">test.json 読み込み</button>
+                <button id="debug-exit-test" type="button">テスト解除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
          ▼ 右クリックメニュー（非表示）
          ※ 見える形ではなく右クリック→選択する形
     ============================================================ -->

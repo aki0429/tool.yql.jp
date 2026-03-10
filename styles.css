@@ -50,6 +50,18 @@ a {
 a:hover {
     text-decoration: underline; /* ホバー時の下線 */
 }
+.unavailable {
+    opacity: 0.75;
+}
+.unavailable a {
+    pointer-events: none;
+    text-decoration: none;
+}
+.unavailable-note {
+    color: #ffd5d5;
+    margin-left: 6px;
+    font-size: 0.9em;
+}
 footer {
     background-color: rgba(53, 66, 74, 0.8); /* フッターの背景色 */
     color: #ffffff; /* テキストの色を白に設定 */

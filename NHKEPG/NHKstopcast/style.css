@@ -1,0 +1,398 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  background: #0f1923;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+header {
+  background: linear-gradient(135deg, #1a2a3a 0%, #0d1b2a 100%);
+  padding: 20px 24px;
+  border-bottom: 2px solid #2a4a6a;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  color: #4fc3f7;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: #8899aa;
+  margin-bottom: 12px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  color: #aabbcc;
+  white-space: nowrap;
+}
+
+select, button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #3a5a7a;
+  background: #1a2a3a;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+select:hover, button:hover {
+  border-color: #4fc3f7;
+  background: #1e3348;
+}
+
+button {
+  background: #1e3a5a;
+  font-weight: 600;
+}
+
+button:hover {
+  background: #2a4a6a;
+}
+
+input[type="checkbox"] {
+  accent-color: #4fc3f7;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.status {
+  font-size: 0.8rem;
+  color: #6a8a9a;
+  min-height: 1.2em;
+}
+
+.status.loading {
+  color: #ffb74d;
+}
+
+.status.done {
+  color: #66bb6a;
+}
+
+.status.error {
+  color: #ef5350;
+}
+
+main {
+  padding: 16px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: #1a2a3a;
+  border: 1px solid #2a4a6a;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.summary-card .label {
+  font-size: 0.75rem;
+  color: #8899aa;
+  margin-bottom: 4px;
+}
+
+.summary-card .value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #4fc3f7;
+}
+
+.summary-card.today .value {
+  color: #ffb74d;
+}
+
+.summary-card.error-count .value {
+  color: #ef5350;
+}
+
+/* Station sections */
+.station-section {
+  margin-bottom: 20px;
+  background: #141e2a;
+  border: 1px solid #2a3a4a;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.station-section.collapsed .station-body {
+  display: none;
+}
+
+.station-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #1a2a3a;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.station-header:hover {
+  background: #1e3348;
+}
+
+.station-header .station-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.station-header .region-tag {
+  font-size: 0.7rem;
+  background: #2a4a6a;
+  color: #8ab4d6;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.station-header .count-badge {
+  font-size: 0.8rem;
+  color: #8899aa;
+}
+
+.station-header .toggle-icon {
+  color: #6a8a9a;
+  font-size: 0.9rem;
+  transition: transform 0.2s;
+}
+
+.station-section:not(.collapsed) .toggle-icon {
+  transform: rotate(90deg);
+}
+
+.station-body {
+  padding: 0;
+}
+
+.station-error {
+  padding: 12px 16px;
+  color: #ef5350;
+  font-size: 0.85rem;
+}
+
+.station-empty {
+  padding: 12px 16px;
+  color: #6a8a9a;
+  font-size: 0.85rem;
+}
+
+.station-empty a {
+  color: #4fc3f7;
+  text-decoration: underline;
+}
+
+.station-empty a:hover {
+  color: #81d4fa;
+}
+
+/* Table */
+.rest-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.rest-table th {
+  background: #0f1923;
+  color: #8899aa;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #2a3a4a;
+  position: sticky;
+  top: 0;
+}
+
+.rest-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1a2a3a;
+  vertical-align: top;
+}
+
+.rest-table tr:hover td {
+  background: #1a2a3a;
+}
+
+.rest-table tr.today-row td {
+  background: rgba(255, 183, 77, 0.08);
+  border-left: 3px solid #ffb74d;
+}
+
+.rest-table tr.today-row:first-child td {
+  border-left: 3px solid #ffb74d;
+}
+
+/* Channel badges */
+.channel-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.channel-badge.sogo {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
+
+.channel-badge.etele {
+  background: #4a148c;
+  color: #ce93d8;
+}
+
+.channel-badge.radio {
+  background: #bf360c;
+  color: #ffab91;
+}
+
+.channel-badge.fm {
+  background: #01579b;
+  color: #81d4fa;
+}
+
+.channel-badge.other {
+  background: #37474f;
+  color: #b0bec5;
+}
+
+/* Region group headers */
+.region-group-header {
+  padding: 12px 16px 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #4fc3f7;
+  border-bottom: 1px solid #2a4a6a;
+  margin-top: 8px;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #3a5a7a;
+  border-top-color: #4fc3f7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: #1a2a3a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  color: #5a6a7a;
+  font-size: 0.75rem;
+  border-top: 1px solid #1a2a3a;
+}
+
+footer a {
+  color: #4fc3f7;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  header {
+    padding: 14px 12px;
+  }
+
+  header h1 {
+    font-size: 1.2rem;
+  }
+
+  .controls {
+    gap: 8px;
+  }
+
+  main {
+    padding: 10px 8px;
+  }
+
+  .rest-table {
+    font-size: 0.78rem;
+  }
+
+  .rest-table th,
+  .rest-table td {
+    padding: 6px 8px;
+  }
+
+  .summary-card {
+    min-width: 90px;
+    padding: 8px 10px;
+  }
+}
