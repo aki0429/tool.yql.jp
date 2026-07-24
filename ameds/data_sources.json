@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "defaultSourceIds": ["jma-amedas"],
+  "sources": [
+    {
+      "id": "jma-amedas",
+      "group": "official",
+      "name": "気象庁 AMeDAS",
+      "provider": "気象庁",
+      "type": "jma-amedas",
+      "enabledByDefault": true,
+      "homepage": "https://www.jma.go.jp/bosai/amedas/",
+      "endpoints": {
+        "latestTime": "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt",
+        "stations": "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
+        "observationsTemplate": "https://www.jma.go.jp/bosai/amedas/data/map/{yyyymmddHHMMss}.json"
+      }
+    },
+    {
+      "id": "mlit-rain",
+      "group": "official",
+      "name": "国土交通省 雨量観測所",
+      "provider": "国土交通省",
+      "type": "mlit-kawabou",
+      "enabledByDefault": false,
+      "homepage": "https://www.river.go.jp/kawabou/pc/tm",
+      "seedUrl": "https://www.river.go.jp/kawabou/pc/tm?zm=12&clat=35.790386593409025&clon=140.08838653564456&fld=0&mapType=0&viewGrpStg=1&viewRd=1&viewRW=0&viewRl=1&viewRn=1&viewPoint=1&ext=0&ofcCd=3073&itmkndCd=1&obsCd=43",
+      "endpoints": {
+        "observations": "mlit_kawabou.php?seed_url=https%3A%2F%2Fwww.river.go.jp%2Fkawabou%2Fpc%2Ftm%3Fzm%3D12%26clat%3D35.790386593409025%26clon%3D140.08838653564456%26fld%3D0%26mapType%3D0%26viewGrpStg%3D1%26viewRd%3D1%26viewRW%3D0%26viewRl%3D1%26viewRn%3D1%26viewPoint%3D1%26ext%3D0%26ofcCd%3D3073%26itmkndCd%3D1%26obsCd%3D43"
+      },
+      "mapping": {
+        "id": "properties.id",
+        "name": "properties.name",
+        "latitude": "geometry.coordinates.1",
+        "longitude": "geometry.coordinates.0",
+        "precipitation10m": "properties.precipitation10m",
+        "precipitation1h": "properties.precipitation1h",
+        "precipitation3h": "properties.precipitation3h",
+        "precipitation24h": "properties.precipitation24h"
+      }
+    },
+    {
+      "id": "prefecture-rain",
+      "group": "prefecture",
+      "name": "都道府県 雨量",
+      "provider": "各都道府県",
+      "type": "prefecture-index",
+      "enabledByDefault": false,
+      "status": "endpoint-required",
+      "sources": []
+    }
+  ]
+}

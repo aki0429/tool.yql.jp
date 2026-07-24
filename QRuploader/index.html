@@ -1,0 +1,1161 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR TCP-Stream Engine v7.4 (Session Guarded)</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 10px auto; padding: 10px; background: #0f172a; color: #f8fafc; }
+        .card { background: #1e293b; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 15px; }
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; transition: all 0.2s; text-align: center; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 6px; flex: none; background: #475569; color: white; border: 1px solid #64748b; cursor: pointer; font-weight: bold; }
+        .btn-sm:hover { background: #64748b; }
+        
+        .sync-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 15px; }
+        .panel { display: flex; flex-direction: column; background: #334155; padding: 15px; border-radius: 12px; border: 2px solid #475569; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px; }
+        .panel h3 { margin: 0; font-size: 16px; color: #cbd5e1; }
+        .panel-content { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        
+        #qrcode-box { width: 100%; max-width: 360px; aspect-ratio: 1; background: white; border-radius: 8px; display: flex; justify-content: center; align-items: center; padding: 12px; box-sizing: border-box;}
+        #qrcode-box img, #qrcode-box canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        #video-container { position: relative; width: 100%; max-width: 430px; aspect-ratio: 1; overflow: hidden; border-radius: 8px; background: #000; border: 2px solid #10b981; }
+        #webcam { width: 100%; height: 100%; object-fit: cover; }
+        .camera-overlay-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.9); font-size: 14px; font-weight: bold; text-align: center; pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,0.9); line-height: 1.5; }
+
+        .stats-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 15px; text-align: center; }
+        .stat-box { background: #334155; padding: 10px 3px; border-radius: 8px; }
+        .stat-val { font-size: 13px; font-weight: bold; color: #60a5fa; margin-top: 5px; word-break: break-all; }
+        .stat-lbl { font-size: 9px; color: #94a3b8; font-weight: bold; }
+
+        #drop-zone { border: 2px dashed #3b82f6; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; background: #1e3a8a; }
+        .progress-bar { height: 10px; background: #475569; border-radius: 5px; margin-top: 15px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #10b981; width: 0%; transition: width 0.05s; }
+        .status-text { text-align: center; font-weight: bold; margin-top: 10px; color: #f8fafc; font-size: 14px; background: #020617; padding: 8px; border-radius: 6px; }
+        
+        #engine-log { margin-top: 10px; font-size: 12px; color: #fbbf24; background: #020617; padding: 8px; border-radius: 4px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #hidden-canvas { display: none; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" data-cfasync="false"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" data-cfasync="false"></script>
+</head>
+<body>
+
+    <div class="nav-buttons">
+        <button class="btn btn-primary" id="btn-send" onclick="switchMode('send-mode')">SEND (送信側)</button>
+        <button class="btn btn-secondary" id="btn-receive" onclick="switchMode('receive-mode')">RECEIVE (受信側)</button>
+    </div>
+
+    <div class="card">
+        <div id="file-selector-wrapper" style="display:none; margin-bottom:15px;">
+            <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <p>[SELECT FILE] タップしてファイルを選択</p>
+                <input type="file" id="file-input" style="display:none">
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box"><div class="stat-lbl">PROGRESS</div><div class="stat-val" id="stat-progress">0%</div></div>
+            <div class="stat-box"><div class="stat-lbl">ENGINE</div><div class="stat-val" id="stat-engine" style="color:#10b981;">DETECTING</div></div>
+            <div class="stat-box"><div class="stat-lbl">INTERVAL</div><div class="stat-val" id="stat-time">-- ms</div></div>
+            <div class="stat-box"><div class="stat-lbl">MISSING</div><div class="stat-val" id="stat-missing" style="color:#ef4444;">0</div></div>
+            <div class="stat-box" style="background: #1e3a8a;"><div class="stat-lbl" style="color: #93c5fd;">REMAIN</div><div class="stat-val" id="stat-remain" style="color:#facc15;">--s</div></div>
+        </div>
+        <div class="progress-bar"><div id="progress-bar-fill" class="progress-fill"></div></div>
+        <div class="status-text" id="global-status">モードを選択してください</div>
+
+        <div id="engine-log">エンジン初期化中...</div>
+        <div id="missing-list" style="margin-top:8px; font-family: monospace; font-size:12px; color:#f97316; white-space:pre-wrap; word-break:break-all;">欠番: -</div>
+
+        <div class="sync-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>MY QR (自分のQR画面) [<span id="send-fps-counter">0</span> 送信FPS]</h3>
+                </div>
+                <div class="panel-content">
+                    <div id="qrcode-box"></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>CAMERA [<span id="fps-counter">0</span> 解析FPS]</h3>
+                    <button class="btn-sm" id="btn-toggle-camera" onclick="toggleCameraFacingMode()">カメラ切替</button>
+                </div>
+                <div class="panel-content">
+                    <div id="video-container">
+                        <video id="webcam" playsinline></video>
+                        <div class="camera-overlay-text" id="camera-overlay">開始QRを待機中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="download-zone" style="display:none; text-align:center; margin-top:20px;">
+            <a id="download-link" class="btn btn-primary" style="display:inline-block; text-decoration:none; background:#10b981; width: 100%; box-sizing: border-box;">SAVE FILE (ファイルを保存)</a>
+        </div>
+    </div>
+
+    <canvas id="hidden-canvas"></canvas>
+
+<script data-cfasync="false">
+    let currentMode = ''; 
+    const CHUNK_SIZE = 200; 
+    const MAX_SEND_FPS = 60; 
+    const RETRY_FPS = 5;
+    const TRANSPORT_MODE = 'framegrid';
+    const COLOR_QR_PREFIX = 'C4';
+    const COLOR_QR_CANVAS_SIZE = 360;
+    const COLOR_QR_PALETTE = [
+        [0, 0, 0],
+        [255, 48, 48],
+        [0, 166, 62],
+        [37, 99, 235]
+    ];
+    const FRAMEGRID_PREFIX = 'FG1';
+    const FRAMEGRID_SIZE = 32;
+    const FRAMEGRID_RESERVED_BLOCK_SIZE = 14;
+    const FRAMEGRID_QR_DRAW_BLOCK_SIZE = 12;
+    const FRAMEGRID_RESERVED_START = (FRAMEGRID_SIZE - FRAMEGRID_RESERVED_BLOCK_SIZE) / 2;
+    const FRAMEGRID_QR_START = (FRAMEGRID_SIZE - FRAMEGRID_QR_DRAW_BLOCK_SIZE) / 2;
+    const FRAMEGRID_QR_OFFSET = FRAMEGRID_QR_START / FRAMEGRID_SIZE;
+    const FRAMEGRID_QR_FRACTION = FRAMEGRID_QR_DRAW_BLOCK_SIZE / FRAMEGRID_SIZE;
+    const FRAMEGRID_CAPACITY_BYTES = Math.floor(((FRAMEGRID_SIZE * FRAMEGRID_SIZE) - (FRAMEGRID_RESERVED_BLOCK_SIZE * FRAMEGRID_RESERVED_BLOCK_SIZE)) / 4);
+    const textEncoder = new TextEncoder();
+    const textDecoder = new TextDecoder();
+    
+    // 重複した再送要求を避けるためのキャッシュ
+    window.lastProcessedRetryStr = '';
+
+    const qrElement = document.getElementById('qrcode-box');
+    const qrScratchElement = document.createElement('div');
+    const qrScratch = new QRCode(qrScratchElement, {
+        width: COLOR_QR_CANVAS_SIZE,
+        height: COLOR_QR_CANVAS_SIZE,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel: QRCode.CorrectLevel.L
+    });
+
+    function fnv1a(bytes) {
+        let hash = 0x811c9dc5;
+        for (const byte of bytes) {
+            hash ^= byte;
+            hash = Math.imul(hash, 0x01000193) >>> 0;
+        }
+        return hash >>> 0;
+    }
+
+    function buildFrameGridCarrier(payloadBytes) {
+        return `${FRAMEGRID_PREFIX}|${payloadBytes.length.toString(36)}|${fnv1a(payloadBytes).toString(36)}`;
+    }
+
+    function parseFrameGridCarrier(text) {
+        const m = text.trim().match(/^FG1\|([0-9a-z]+)\|([0-9a-z]+)$/i);
+        if (!m) return null;
+        return {
+            payloadLength: parseInt(m[1], 36),
+            checksum: m[2].toLowerCase()
+        };
+    }
+
+    function isReservedFrameCell(row, col) {
+        return row >= FRAMEGRID_RESERVED_START &&
+            row < FRAMEGRID_RESERVED_START + FRAMEGRID_RESERVED_BLOCK_SIZE &&
+            col >= FRAMEGRID_RESERVED_START &&
+            col < FRAMEGRID_RESERVED_START + FRAMEGRID_RESERVED_BLOCK_SIZE;
+    }
+
+    function renderFrameGrid(text, small) {
+        const payloadBytes = textEncoder.encode(text);
+        if (payloadBytes.length > FRAMEGRID_CAPACITY_BYTES) return false;
+
+        const canvas = document.createElement('canvas');
+        const drawSize = COLOR_QR_CANVAS_SIZE;
+        const cssSize = small ? 240 : 360;
+        const cellSize = drawSize / FRAMEGRID_SIZE;
+        const ctx = canvas.getContext('2d');
+        const carrier = buildFrameGridCarrier(payloadBytes);
+        const qrModel = getQrMatrix(carrier, 0);
+        const qrDrawSize = FRAMEGRID_QR_DRAW_BLOCK_SIZE * cellSize;
+        const qrModuleSize = qrDrawSize / qrModel.moduleCount;
+        const qrOrigin = FRAMEGRID_QR_START * cellSize;
+
+        canvas.width = drawSize;
+        canvas.height = drawSize;
+        canvas.style.width = `${cssSize}px`;
+        canvas.style.height = `${cssSize}px`;
+        canvas.style.display = 'block';
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, drawSize, drawSize);
+        ctx.fillStyle = '#111111';
+        ctx.fillRect(0, 0, drawSize, 4);
+        ctx.fillRect(0, drawSize - 4, drawSize, 4);
+        ctx.fillRect(0, 0, 4, drawSize);
+        ctx.fillRect(drawSize - 4, 0, 4, drawSize);
+
+        let symbolIndex = 0;
+        const requiredSymbols = payloadBytes.length * 4;
+        for (let row = 0; row < FRAMEGRID_SIZE; row++) {
+            for (let col = 0; col < FRAMEGRID_SIZE; col++) {
+                if (isReservedFrameCell(row, col)) continue;
+                const paletteIndex = symbolIndex < requiredSymbols ? getSymbolAt(payloadBytes, symbolIndex) : 0;
+                const rgb = COLOR_QR_PALETTE[paletteIndex];
+                ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+                ctx.fillRect(col * cellSize, row * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
+                symbolIndex++;
+            }
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(
+            FRAMEGRID_RESERVED_START * cellSize,
+            FRAMEGRID_RESERVED_START * cellSize,
+            FRAMEGRID_RESERVED_BLOCK_SIZE * cellSize,
+            FRAMEGRID_RESERVED_BLOCK_SIZE * cellSize
+        );
+
+        ctx.fillStyle = '#000000';
+        for (let row = 0; row < qrModel.moduleCount; row++) {
+            for (let col = 0; col < qrModel.moduleCount; col++) {
+                if (!qrModel.isDark(row, col)) continue;
+                ctx.fillRect(
+                    qrOrigin + (col * qrModuleSize),
+                    qrOrigin + (row * qrModuleSize),
+                    Math.ceil(qrModuleSize),
+                    Math.ceil(qrModuleSize)
+                );
+            }
+        }
+
+        qrElement.innerHTML = '';
+        qrElement.appendChild(canvas);
+        return true;
+    }
+
+    function buildColorCarrier(version, payloadBytes) {
+        return `${COLOR_QR_PREFIX}|${version.toString(36)}|${payloadBytes.length.toString(36)}|${fnv1a(payloadBytes).toString(36)}`;
+    }
+
+    function getQrMatrix(text, version) {
+        qrScratch.clear();
+        qrScratch._htOption.typeNumber = version;
+        qrScratch.makeCode(text);
+        return qrScratch._oQRCode;
+    }
+
+    function countDarkModules(qrModel) {
+        let darkCount = 0;
+        for (let row = 0; row < qrModel.moduleCount; row++) {
+            for (let col = 0; col < qrModel.moduleCount; col++) {
+                if (qrModel.isDark(row, col)) darkCount++;
+            }
+        }
+        return darkCount;
+    }
+
+    function planColorQr(text) {
+        const payloadBytes = textEncoder.encode(text);
+        for (let version = 6; version <= 40; version++) {
+            try {
+                const carrier = buildColorCarrier(version, payloadBytes);
+                const qrModel = getQrMatrix(carrier, version);
+                const darkCount = countDarkModules(qrModel);
+                if (darkCount * 2 >= payloadBytes.length * 8) {
+                    return { carrier, payloadBytes, qrModel };
+                }
+            } catch (err) {
+                continue;
+            }
+        }
+        return null;
+    }
+
+    function getSymbolAt(bytes, symbolIndex) {
+        const byteIndex = Math.floor(symbolIndex / 4);
+        if (byteIndex >= bytes.length) return 0;
+        const shift = 6 - ((symbolIndex % 4) * 2);
+        return (bytes[byteIndex] >> shift) & 0b11;
+    }
+
+    function renderMonochromeQr(text, small) {
+        const qrModel = getQrMatrix(text, 0);
+        const canvas = document.createElement('canvas');
+        const drawSize = COLOR_QR_CANVAS_SIZE;
+        const cssSize = small ? 260 : 380;
+        const moduleSize = drawSize / qrModel.moduleCount;
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = drawSize;
+        canvas.height = drawSize;
+        canvas.style.width = `${cssSize}px`;
+        canvas.style.height = `${cssSize}px`;
+        canvas.style.display = 'block';
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, drawSize, drawSize);
+        ctx.fillStyle = '#000000';
+
+        for (let row = 0; row < qrModel.moduleCount; row++) {
+            for (let col = 0; col < qrModel.moduleCount; col++) {
+                if (!qrModel.isDark(row, col)) continue;
+                ctx.fillRect(col * moduleSize, row * moduleSize, Math.ceil(moduleSize), Math.ceil(moduleSize));
+            }
+        }
+
+        qrElement.innerHTML = '';
+        qrElement.appendChild(canvas);
+    }
+
+    function renderColorQr(plan, small) {
+        const qrModel = plan.qrModel;
+        const canvas = document.createElement('canvas');
+        const drawSize = COLOR_QR_CANVAS_SIZE;
+        const cssSize = small ? 220 : 360;
+        const moduleSize = drawSize / qrModel.moduleCount;
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = drawSize;
+        canvas.height = drawSize;
+        canvas.style.width = `${cssSize}px`;
+        canvas.style.height = `${cssSize}px`;
+        canvas.style.display = 'block';
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, drawSize, drawSize);
+
+        let symbolIndex = 0;
+        for (let row = 0; row < qrModel.moduleCount; row++) {
+            for (let col = 0; col < qrModel.moduleCount; col++) {
+                if (!qrModel.isDark(row, col)) continue;
+                const paletteIndex = getSymbolAt(plan.payloadBytes, symbolIndex++);
+                const rgb = COLOR_QR_PALETTE[paletteIndex];
+                ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+                ctx.fillRect(col * moduleSize, row * moduleSize, Math.ceil(moduleSize), Math.ceil(moduleSize));
+            }
+        }
+
+        qrElement.innerHTML = '';
+        qrElement.appendChild(canvas);
+    }
+
+    function updateQrFast(text, small = false) {
+        if (TRANSPORT_MODE === 'framegrid' && renderFrameGrid(text, small)) {
+            return;
+        }
+        if (TRANSPORT_MODE !== 'colorqr') {
+            renderMonochromeQr(text, small);
+            return;
+        }
+        const plan = planColorQr(text);
+        if (!plan) return;
+        renderColorQr(plan, small);
+    }
+
+    function parseColorCarrier(text) {
+        const m = text.trim().match(/^C4\|([0-9a-z]+)\|([0-9a-z]+)\|([0-9a-z]+)$/i);
+        if (!m) return null;
+        return {
+            version: parseInt(m[1], 36),
+            payloadLength: parseInt(m[2], 36),
+            checksum: m[3].toLowerCase()
+        };
+    }
+
+    function makeBinaryImage(source) {
+        const out = new Uint8ClampedArray(source.data.length);
+        for (let i = 0; i < source.data.length; i += 4) {
+            const r = source.data[i];
+            const g = source.data[i + 1];
+            const b = source.data[i + 2];
+            const distanceFromWhite = (255 - r) + (255 - g) + (255 - b);
+            const dark = distanceFromWhite > 80;
+            const value = dark ? 0 : 255;
+            out[i] = value;
+            out[i + 1] = value;
+            out[i + 2] = value;
+            out[i + 3] = 255;
+        }
+        return out;
+    }
+
+    function decodeWithJsQr(data, width, height, inversionAttempts) {
+        try {
+            return jsQR(data, width, height, { inversionAttempts });
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function detectQrCode(imageData) {
+        const attempts = [
+            () => decodeWithJsQr(imageData.data, imageData.width, imageData.height, "attemptBoth"),
+            () => decodeWithJsQr(makeBinaryImage(imageData), imageData.width, imageData.height, "dontInvert"),
+            () => decodeWithJsQr(makeBinaryImage(imageData), imageData.width, imageData.height, "attemptBoth"),
+            () => decodeWithJsQr(imageData.data, imageData.width, imageData.height, "invertFirst")
+        ];
+
+        for (const attempt of attempts) {
+            const code = attempt();
+            if (code && code.data) return code;
+        }
+        return null;
+    }
+
+    function createSquareToQuadTransform(topLeft, topRight, bottomRight, bottomLeft) {
+        const x0 = topLeft.x, y0 = topLeft.y;
+        const x1 = topRight.x, y1 = topRight.y;
+        const x2 = bottomRight.x, y2 = bottomRight.y;
+        const x3 = bottomLeft.x, y3 = bottomLeft.y;
+        const dx1 = x1 - x2;
+        const dy1 = y1 - y2;
+        const dx2 = x3 - x2;
+        const dy2 = y3 - y2;
+        const sx = x0 - x1 + x2 - x3;
+        const sy = y0 - y1 + y2 - y3;
+
+        let a, b, c, d, e, f, g, h;
+        if (sx === 0 && sy === 0) {
+            a = x1 - x0;
+            b = x3 - x0;
+            c = x0;
+            d = y1 - y0;
+            e = y3 - y0;
+            f = y0;
+            g = 0;
+            h = 0;
+        } else {
+            const denominator = (dx1 * dy2) - (dx2 * dy1);
+            g = ((sx * dy2) - (dx2 * sy)) / denominator;
+            h = ((dx1 * sy) - (sx * dy1)) / denominator;
+            a = x1 - x0 + (g * x1);
+            b = x3 - x0 + (h * x3);
+            c = x0;
+            d = y1 - y0 + (g * y1);
+            e = y3 - y0 + (h * y3);
+            f = y0;
+        }
+
+        return function project(u, v) {
+            const denom = (g * u) + (h * v) + 1;
+            return {
+                x: ((a * u) + (b * v) + c) / denom,
+                y: ((d * u) + (e * v) + f) / denom
+            };
+        };
+    }
+
+    function getPointColor(imageData, x, y) {
+        const radius = 1;
+        let totalR = 0, totalG = 0, totalB = 0, samples = 0;
+        for (let oy = -radius; oy <= radius; oy++) {
+            for (let ox = -radius; ox <= radius; ox++) {
+                const px = Math.max(0, Math.min(imageData.width - 1, Math.round(x + ox)));
+                const py = Math.max(0, Math.min(imageData.height - 1, Math.round(y + oy)));
+                const idx = ((py * imageData.width) + px) * 4;
+                totalR += imageData.data[idx];
+                totalG += imageData.data[idx + 1];
+                totalB += imageData.data[idx + 2];
+                samples++;
+            }
+        }
+        return [totalR / samples, totalG / samples, totalB / samples];
+    }
+
+    function nearestPaletteIndex(rgb) {
+        let bestIndex = 0;
+        let bestDistance = Infinity;
+        for (let i = 0; i < COLOR_QR_PALETTE.length; i++) {
+            const ref = COLOR_QR_PALETTE[i];
+            const dr = rgb[0] - ref[0];
+            const dg = rgb[1] - ref[1];
+            const db = rgb[2] - ref[2];
+            const distance = (dr * dr) + (dg * dg) + (db * db);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    function decodeFrameGridPayload(imageData, carrierInfo, qrLocation) {
+        const topLeft = qrLocation.topLeftCorner || qrLocation.topLeftFinderPattern;
+        const topRight = qrLocation.topRightCorner || qrLocation.topRightFinderPattern;
+        const bottomLeft = qrLocation.bottomLeftCorner || qrLocation.bottomLeftFinderPattern;
+        const bottomRight = qrLocation.bottomRightCorner || qrLocation.bottomRightAlignmentPattern || {
+            x: topRight.x + bottomLeft.x - topLeft.x,
+            y: topRight.y + bottomLeft.y - topLeft.y
+        };
+
+        if (!topLeft || !topRight || !bottomLeft || !bottomRight) return null;
+
+        const qrProject = createSquareToQuadTransform(topLeft, topRight, bottomRight, bottomLeft);
+        const payloadBytes = new Uint8Array(carrierInfo.payloadLength);
+        const requiredSymbols = carrierInfo.payloadLength * 4;
+        let symbolIndex = 0;
+
+        for (let row = 0; row < FRAMEGRID_SIZE && symbolIndex < requiredSymbols; row++) {
+            for (let col = 0; col < FRAMEGRID_SIZE && symbolIndex < requiredSymbols; col++) {
+                if (isReservedFrameCell(row, col)) continue;
+                const u = ((col + 0.5) / FRAMEGRID_SIZE - FRAMEGRID_QR_OFFSET) / FRAMEGRID_QR_FRACTION;
+                const v = ((row + 0.5) / FRAMEGRID_SIZE - FRAMEGRID_QR_OFFSET) / FRAMEGRID_QR_FRACTION;
+                const point = qrProject(u, v);
+                const paletteIndex = nearestPaletteIndex(getPointColor(imageData, point.x, point.y));
+                const byteIndex = Math.floor(symbolIndex / 4);
+                const shift = 6 - ((symbolIndex % 4) * 2);
+                payloadBytes[byteIndex] |= paletteIndex << shift;
+                symbolIndex++;
+            }
+        }
+
+        if (fnv1a(payloadBytes).toString(36) !== carrierInfo.checksum) return null;
+
+        try {
+            return textDecoder.decode(payloadBytes);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function decodeColorPayload(imageData, carrierText, qrLocation) {
+        const carrierInfo = parseColorCarrier(carrierText);
+        if (!carrierInfo) return null;
+
+        const qrModel = getQrMatrix(carrierText, carrierInfo.version);
+        const topLeft = qrLocation.topLeftCorner || qrLocation.topLeftFinderPattern;
+        const topRight = qrLocation.topRightCorner || qrLocation.topRightFinderPattern;
+        const bottomLeft = qrLocation.bottomLeftCorner || qrLocation.bottomLeftFinderPattern;
+        const bottomRight = qrLocation.bottomRightCorner || qrLocation.bottomRightAlignmentPattern || {
+            x: topRight.x + bottomLeft.x - topLeft.x,
+            y: topRight.y + bottomLeft.y - topLeft.y
+        };
+
+        if (!topLeft || !topRight || !bottomLeft || !bottomRight) return null;
+
+        const project = createSquareToQuadTransform(topLeft, topRight, bottomRight, bottomLeft);
+        const payloadBytes = new Uint8Array(carrierInfo.payloadLength);
+        const requiredSymbols = carrierInfo.payloadLength * 4;
+        let symbolIndex = 0;
+
+        for (let row = 0; row < qrModel.moduleCount && symbolIndex < requiredSymbols; row++) {
+            for (let col = 0; col < qrModel.moduleCount && symbolIndex < requiredSymbols; col++) {
+                if (!qrModel.isDark(row, col)) continue;
+                const point = project((col + 0.5) / qrModel.moduleCount, (row + 0.5) / qrModel.moduleCount);
+                const paletteIndex = nearestPaletteIndex(getPointColor(imageData, point.x, point.y));
+                const byteIndex = Math.floor(symbolIndex / 4);
+                const shift = 6 - ((symbolIndex % 4) * 2);
+                payloadBytes[byteIndex] |= paletteIndex << shift;
+                symbolIndex++;
+            }
+        }
+
+        if (fnv1a(payloadBytes).toString(36) !== carrierInfo.checksum) return null;
+
+        try {
+            return textDecoder.decode(payloadBytes);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function decodeScannedQr(imageData) {
+        const code = detectQrCode(imageData);
+        if (!code || !code.data) return null;
+
+        const carrierText = code.data.trim();
+        const frameCarrier = parseFrameGridCarrier(carrierText);
+        if (frameCarrier) {
+            return decodeFrameGridPayload(imageData, frameCarrier, code.location);
+        }
+        if (!carrierText.startsWith(`${COLOR_QR_PREFIX}|`)) return carrierText;
+
+        return decodeColorPayload(imageData, carrierText, code.location);
+    }
+
+    function parsePacket(text) {
+        if (!text) return null;
+        const t = text.trim();
+        let m = t.match(/^SEQ\s*:\s*(\d+)\/(\d+)\|(.*)/s);
+        if (m) return { index: parseInt(m[1], 10), total: parseInt(m[2], 10), data: m[3] };
+        m = t.match(/^\[(\d+)\/(\d+)\]([\s\S]*)/);
+        if (m) {
+            const rawIdx = parseInt(m[1], 10);
+            const total = parseInt(m[2], 10);
+            const idx = rawIdx > 0 && rawIdx <= total ? rawIdx - 1 : rawIdx;
+            return { index: idx, total: total, data: m[3] };
+        }
+        return null;
+    }
+
+    function updateMissingList() {
+        const el = document.getElementById('missing-list');
+        if (!el || !totalChunks) return;
+        const missing = [];
+        for (let i = 0; i < totalChunks; i++) if (!(i in receivedChunks)) missing.push(i);
+        if (missing.length === 0) {
+            el.textContent = '欠番: -';
+        } else {
+            const disp = missing.slice(0,100).map(i => i + 1);
+            el.textContent = `欠番(${missing.length}): ${disp.join(', ')}`;
+        }
+    }
+
+    function logEngine(msg) {
+        const el = document.getElementById('engine-log');
+        if (!el) return;
+        const ts = new Date().toLocaleTimeString();
+        el.textContent = `${ts} - ${msg}\n` + el.textContent;
+        if (el.textContent.length > 2000) el.textContent = el.textContent.slice(0,2000);
+    }
+
+    let chunks = [], receivedChunks = {};
+    let totalChunks = 0;
+    let isFinished = false;
+    let videoStream = null, isCameraRunning = false;
+    
+    let myCurrentFps = 60;
+    let targetFps = MAX_SEND_FPS;    
+    let lastFpsTime = performance.now(), frameCount = 0;
+    let lastSendFpsTime = performance.now(), sendFrameCount = 0;
+
+    let sendState = 'WAIT_START_ACK'; 
+    let receiveState = 'WAIT_START_QR'; 
+    let streamIdx = 0;
+    let retryQueue = []; 
+    let lastFrameTime = 0;
+    let receiveStartTime = null;
+    let lastStartSent = 0;
+    let isCameraStarting = false;
+    let cameraStartAttempts = 0;
+    let lastEndCheckSent = 0;
+    let retryRequestOffset = 0;
+    const RETRY_BATCH_SIZE = 12;
+    
+    // カメラの向き設定 (environment: 背面, user: 前面)
+    let currentFacingMode = "environment"; 
+
+    updateEngineUI();
+
+
+    function updateEngineUI() {
+        const engineLabel = document.getElementById('stat-engine');
+        const logLabel = document.getElementById('engine-log');
+        engineLabel.textContent = "FRAME GRID";
+        engineLabel.style.color = "#10b981";
+        logLabel.textContent = "実験用フレームグリッド転送モードで動作中";
+    }
+
+    function isLocalhostLike(hostname) {
+        return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    }
+
+    function isIOSDevice() {
+        const ua = navigator.userAgent || '';
+        return /iPhone|iPad|iPod/i.test(ua);
+    }
+
+    function getCameraBlockedReason() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return 'このブラウザではカメラAPIが利用できません。';
+        }
+
+        if (!window.isSecureContext && !isLocalhostLike(location.hostname)) {
+            if (isIOSDevice()) {
+                return 'iPhoneではHTTP環境でカメラを起動できません。HTTPSで開いてください。';
+            }
+            return 'このページはHTTP環境のためカメラを起動できません。HTTPSで開いてください。';
+        }
+
+        return '';
+    }
+
+    function showCameraBlockedMessage(message) {
+        document.getElementById('camera-overlay').innerHTML = 'カメラを起動できません';
+        document.getElementById('global-status').textContent = message;
+        logEngine(message);
+    }
+
+    function switchMode(mode) {
+        stopAll();
+        currentMode = mode === 'send-mode' ? 'send' : 'receive';
+        
+        document.getElementById('btn-send').className = currentMode === 'send' ? 'btn btn-primary' : 'btn btn-secondary';
+        document.getElementById('btn-receive').className = currentMode === 'receive' ? 'btn btn-primary' : 'btn btn-secondary';
+        document.getElementById('file-selector-wrapper').style.display = currentMode === 'send' ? 'block' : 'none';
+        
+        if (currentMode === 'receive') {
+            receiveState = 'WAIT_START_QR';
+            document.getElementById('global-status').textContent = '【受信待機】相手の[START]QRコードをカメラに映してください';
+            document.getElementById('camera-overlay').innerHTML = '最初のQRをスキャン中...';
+            updateQrFast("READY_TO_RECEIVE:60");
+            startCamera();
+        } else {
+            document.getElementById('global-status').textContent = 'ファイルを選択してください';
+        }
+    }
+
+    document.getElementById('file-input').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) initSendFile(e.target.files[0]);
+    });
+
+    function initSendFile(file) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function() {
+            const base64Data = reader.result;
+            const meta = JSON.stringify({ name: encodeURIComponent(file.name), size: file.size });
+            const fullPayload = btoa(meta) + "||" + base64Data;
+            
+            chunks = [];
+            for (let i = 0; i < fullPayload.length; i += CHUNK_SIZE) {
+                chunks.push(fullPayload.slice(i, i + CHUNK_SIZE));
+            }
+            
+            totalChunks = chunks.length;
+            streamIdx = 0;
+            isFinished = false;
+            sendState = 'WAIT_START_ACK';
+            targetFps = MAX_SEND_FPS;
+            lastFrameTime = performance.now();
+            lastStartSent = 0;
+            lastEndCheckSent = 0;
+            window.lastProcessedRetryStr = '';
+            
+            updateQrFast(`START:${totalChunks}`);
+            document.getElementById('global-status').textContent = '【送信待機】相手からの開始応答(ACK)を待っています...';
+            
+            startCamera();
+            requestAnimationFrame(sendLoop);
+        };
+    }
+
+    function sendLoop(timestamp) {
+        if (isFinished || currentMode !== 'send') return;
+
+        const interval = 1000 / targetFps;
+        const elapsed = timestamp - lastFrameTime;
+
+        if (sendState === 'WAIT_START_ACK') {
+            if (timestamp - lastStartSent >= 500) {
+                updateQrFast(`START:${totalChunks}`);
+                lastStartSent = timestamp;
+            }
+            requestAnimationFrame(sendLoop);
+            return;
+        }
+
+        if (sendState === 'WAIT_RETRY_REQUEST') {
+            if (retryQueue.length > 0) {
+                sendState = 'RETRY_STREAM';
+                logEngine(`RETRY_STREAM開始: ${retryQueue.length}件`);
+            } else if (timestamp - lastEndCheckSent >= 500) {
+                updateQrFast("END_CHECK");
+                lastEndCheckSent = timestamp;
+            }
+            requestAnimationFrame(sendLoop);
+            return;
+        }
+
+        if (elapsed >= interval) {
+            lastFrameTime = timestamp - (elapsed % interval);
+
+            sendFrameCount++;
+            const now = performance.now();
+            if (now - lastSendFpsTime >= 1000) {
+                document.getElementById('send-fps-counter').textContent = sendFrameCount;
+                sendFrameCount = 0; lastSendFpsTime = now;
+            }
+
+            document.getElementById('stat-time').textContent = `${Math.floor(interval)} ms`;
+
+            if (sendState === 'STREAMING') {
+                if (streamIdx < totalChunks) {
+                    updateQrFast(`SEQ:${streamIdx}/${totalChunks}|${chunks[streamIdx]}`);
+                    document.getElementById('global-status').textContent = `高速送信中... [${streamIdx + 1}/${totalChunks}]`;
+                    updateProgressUI(Math.floor((streamIdx / totalChunks) * 100));
+                    
+                    let remainSec = ((totalChunks - streamIdx) * interval) / 1000;
+                    document.getElementById('stat-remain').textContent = `${remainSec.toFixed(1)}s`;
+
+                    streamIdx++;
+                } else {
+                    sendState = 'WAIT_RETRY_REQUEST';
+                    updateQrFast("END_CHECK");
+                    document.getElementById('global-status').textContent = '1巡目が完了しました。再送要求を確認中...';
+                    document.getElementById('stat-remain').textContent = `確認中`;
+                }
+            } else if (sendState === 'RETRY_STREAM') {
+                if (retryQueue.length > 0) {
+                    let idx = retryQueue.shift();
+                    targetFps = RETRY_FPS; // 再送時は表示を安定させるため速度を下げる
+                    updateQrFast(`SEQ:${idx}/${totalChunks}|${chunks[idx]}`, true);
+                    logEngine(`再送パケット [${idx + 1}/${totalChunks}] - 残り ${retryQueue.length}件`);
+                    document.getElementById('global-status').textContent = `再送中... 表示:${idx + 1}/${totalChunks} / 残り:${retryQueue.length}`;
+                    document.getElementById('stat-remain').textContent = `再送中`;
+                } else {
+                    sendState = 'WAIT_RETRY_REQUEST';
+                    updateQrFast("END_CHECK");
+                    logEngine(`再送バッチ完了。次の要求を待機中...`);
+                    document.getElementById('global-status').textContent = '再送完了。追加の再送要求を待機中';
+                    document.getElementById('stat-remain').textContent = `待機中`;
+                    lastEndCheckSent = performance.now(); 
+                }
+            }
+        }
+        requestAnimationFrame(sendLoop);
+    }
+
+    function handleReceivedPacket(rawText) {
+        if (rawText.startsWith("START:")) {
+            if (receiveState !== 'WAIT_START_QR') {
+                return; 
+            }
+            totalChunks = parseInt(rawText.split(":")[1]);
+            receiveState = 'RECORDING';
+            receiveStartTime = performance.now(); 
+            updateQrFast(`ACK:START:${myCurrentFps}`);
+            document.getElementById('camera-overlay').innerHTML = '60FPSでスキャン中...';
+            document.getElementById('global-status').textContent = '同期成功。ストリーム受信を開始します。';
+            return;
+        }
+
+        if (Object.keys(receivedChunks).length % 30 === 0 && Object.keys(receivedChunks).length > 0) {
+            updateQrFast(`KEEP_ALIVE:${myCurrentFps}`);
+        }
+
+        if (rawText === "END_CHECK") {
+            checkMissingPacketsAndRequest();
+            return;
+        }
+
+        const pkt = parsePacket(rawText);
+        if (!pkt) return;
+
+        const index = pkt.index;
+        const data = pkt.data;
+        
+        if (!totalChunks || totalChunks === 0) {
+            if (pkt.total && pkt.total > 0) totalChunks = pkt.total;
+        }
+
+        if (index >= 0 && (totalChunks === 0 || index < totalChunks)) {
+            if (!(index in receivedChunks)) {
+                receivedChunks[index] = data;
+                
+                let successCount = Object.keys(receivedChunks).length;
+                let percent = Math.floor((successCount / totalChunks) * 100);
+                updateProgressUI(percent);
+                document.getElementById('global-status').textContent = `データ受信中... (${successCount}/${totalChunks})`;
+
+                if (receiveStartTime && successCount > 1) {
+                    let elapsedMs = performance.now() - receiveStartTime;
+                    let msPerPacket = elapsedMs / successCount; 
+                    let missingCount = totalChunks - successCount;
+                    let remainSec = (missingCount * msPerPacket) / 1000;
+                    document.getElementById('stat-remain').textContent = `${remainSec.toFixed(1)}s`;
+                }
+
+                if (successCount === totalChunks && totalChunks > 0) {
+                    receiveState = 'COMPLETED';
+                    updateQrFast("ACK:ALL_DONE");
+                    compileReceivedFile();
+                }
+                updateMissingList();
+            }
+        }
+    }
+
+    function checkMissingPacketsAndRequest() {
+        if (totalChunks === 0) return;
+
+        let missing = [];
+        for (let i = 0; i < totalChunks; i++) {
+            if (!(i in receivedChunks)) missing.push(i);
+        }
+        document.getElementById('stat-missing').textContent = missing.length;
+
+        if (missing.length > 0) {
+            receiveState = 'WAIT_RETRY_PACKET';
+
+            const totalBatches = Math.ceil(missing.length / RETRY_BATCH_SIZE);
+            if (retryRequestOffset >= missing.length) retryRequestOffset = 0;
+            
+            const currentBatchIndex = Math.floor(retryRequestOffset / RETRY_BATCH_SIZE);
+            const currentBatchNum = currentBatchIndex + 1;
+            
+            const batchStart = currentBatchIndex * RETRY_BATCH_SIZE;
+            const batchEnd = Math.min(batchStart + RETRY_BATCH_SIZE, missing.length);
+            const toSend = missing.slice(batchStart, batchEnd);
+            
+            if (toSend.length > 0) {
+                updateQrFast(`RETRY:${myCurrentFps}:${toSend.join(',')}(${currentBatchNum}/${totalBatches})`, true);
+                logEngine(`再送要求 [${currentBatchNum}/${totalBatches}]: ${toSend.length}件`);
+                
+                retryRequestOffset = batchEnd;
+                document.getElementById('global-status').textContent = `欠番があります (${missing.length}件)。バッチ再送要求 [${currentBatchNum}/${totalBatches}]`;
+            } else {
+                retryRequestOffset = 0;
+            }
+
+            let elapsedMs = performance.now() - receiveStartTime;
+            let successCount = Object.keys(receivedChunks).length;
+            let msPerPacket = successCount > 0 ? (elapsedMs / successCount) : 30;
+            let remainSec = (missing.length * msPerPacket) / 1000;
+            document.getElementById('stat-remain').textContent = `再送中: ${remainSec.toFixed(1)}s`;
+            updateMissingList();
+        } else {
+            if (Object.keys(receivedChunks).length === totalChunks) {
+                receiveState = 'COMPLETED';
+                updateQrFast("ACK:ALL_DONE");
+                compileReceivedFile();
+            }
+        }
+    }
+
+    // カメラの向きを切り替える
+    async function toggleCameraFacingMode() {
+        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+        logEngine(`カメラ切替: ${currentFacingMode === "environment" ? "背面" : "前面"}`);
+        
+        // 現在のカメラストリームを安全に停止する
+        if (videoStream) {
+            try { videoStream.getTracks().forEach(track => track.stop()); } catch (e) {}
+            videoStream = null;
+        }
+        isCameraRunning = false;
+        isCameraStarting = false;
+        
+        // 新しい向きでカメラを再起動する
+        await startCamera();
+    }
+
+    async function startCamera() {
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('hidden-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        let isCanvasSized = false;
+        const blockedReason = getCameraBlockedReason();
+
+        const constraints = { 
+            video: { 
+                facingMode: currentFacingMode, 
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30, max: 60 }
+            } 
+        };
+
+        if (isCameraRunning || isCameraStarting) return; 
+        if (blockedReason) {
+            showCameraBlockedMessage(blockedReason);
+            return;
+        }
+        isCameraStarting = true;
+
+        try {
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    cameraStartAttempts = attempt;
+                    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    break;
+                } catch (err) {
+                    console.warn(`getUserMedia attempt ${attempt} failed:`, err);
+                    if (attempt === maxAttempts) break;
+                    await new Promise(r => setTimeout(r, 300 * attempt));
+                }
+            }
+            if (!videoStream) {
+                try {
+                    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
+                } catch (e) {
+                    videoStream = null;
+                }
+            }
+
+            if (!videoStream) throw new Error('カメラを初期化できませんでした');
+
+            video.srcObject = videoStream;
+            video.setAttribute("playsinline", true);
+            try { await video.play(); } catch (playErr) { console.warn('video.play() failed', playErr); }
+            isCameraRunning = true;
+            isCameraStarting = false;
+            cameraStartAttempts = 0;
+
+            async function scanLoop() {
+                if (!isCameraRunning || isFinished) return;
+                
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    if (!isCanvasSized) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        isCanvasSized = true;
+                    }
+
+                    frameCount++;
+                    const now = performance.now();
+                    if (now - lastFpsTime >= 1000) {
+                        myCurrentFps = frameCount;
+                        document.getElementById('fps-counter').textContent = myCurrentFps;
+                        frameCount = 0; lastFpsTime = now;
+                    }
+
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let scannedText = decodeScannedQr(imageData);
+
+                    if (scannedText) {
+                        scannedText = scannedText.trim();
+                        document.getElementById('engine-log').textContent = `[最新読取] ${scannedText.substring(0, 45)}`;
+
+                        if (currentMode === 'receive' && receiveState === 'WAIT_START_QR') {
+                            const m = scannedText.match(/START\s*:\s*(\d+)/i);
+                            if (m) {
+                                totalChunks = parseInt(m[1]);
+                                receiveState = 'RECORDING';
+                                receiveStartTime = performance.now();
+                                updateQrFast(`ACK:START:${myCurrentFps}`);
+                                document.getElementById('camera-overlay').innerHTML = '解析中...';
+                                document.getElementById('global-status').textContent = '受信セッションを開始しました。パケットを受信中です。';
+                                requestAnimationFrame(scanLoop);
+                                return;
+                            }
+                        }
+
+                        if (currentMode === 'send') {
+                            if (sendState === 'WAIT_START_ACK' && scannedText.startsWith("ACK:START:")) {
+                                targetFps = MAX_SEND_FPS;
+                                streamIdx = 0;
+                                lastFrameTime = performance.now();
+                                isFinished = false;
+                                sendState = 'STREAMING';
+                            } else if (scannedText.startsWith("RETRY:")) {
+                                if (sendState === 'RETRY_STREAM' || window.lastProcessedRetryStr === scannedText) {
+                                    requestAnimationFrame(scanLoop);
+                                    return;
+                                }
+
+                                const parts = scannedText.split(":");
+                                let indicesStr = parts[2] || "";
+                                indicesStr = indicesStr.replace(/\([0-9]+\/[0-9]+\)/, "").trim();
+                                const list = indicesStr ? indicesStr.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n)) : [];
+                                if (list.length > 0) {
+                                    window.lastProcessedRetryStr = scannedText; 
+                                    sendState = 'RETRY_STREAM';
+                                    retryQueue = list;
+                                    logEngine(`RETRY受信: ${list.length}件。RETRY_STREAMを開始します`);
+                                    targetFps = RETRY_FPS;
+                                    lastFrameTime = performance.now();
+                                    lastEndCheckSent = performance.now(); 
+                                }
+                            } else if (scannedText === "ACK:ALL_DONE") {
+                                sendState = 'COMPLETED';
+                                updateQrFast("FINISHED");
+                                document.getElementById('global-status').textContent = '送信が完了しました';
+                                document.getElementById('stat-remain').textContent = `0.0s`;
+                                isFinished = true;
+                            }
+                        } else if (currentMode === 'receive') {
+                            if (!scannedText.startsWith('ACK:') && !scannedText.startsWith('KEEP_ALIVE:') && !scannedText.startsWith('READY_TO_RECEIVE:') && !scannedText.startsWith('RETRY:')) {
+                                handleReceivedPacket(scannedText);
+                            }
+                        }
+                    }
+                }
+                requestAnimationFrame(scanLoop);
+            }
+            requestAnimationFrame(scanLoop);
+        } catch (err) {
+            const detail = err && err.name ? ` (${err.name})` : '';
+            const message = `カメラの起動に失敗しました${detail}`;
+            showCameraBlockedMessage(message);
+            alert(message);
+        } finally {
+            isCameraStarting = false;
+        }
+    }
+
+    function updateProgressUI(percent) {
+        document.getElementById('stat-progress').textContent = `${percent}%`;
+        document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+    }
+
+    function compileReceivedFile() {
+        isCameraRunning = false;
+        if (videoStream) {
+            try { videoStream.getTracks().forEach(track => track.stop()); } catch (e) {}
+            videoStream = null;
+        }
+
+        let successCount = Object.keys(receivedChunks).length;
+        if (successCount !== totalChunks || totalChunks === 0) {
+            document.getElementById('global-status').textContent = `復元不可: パケットが不足しています (${successCount}/${totalChunks})`;
+            return;
+        }
+
+        let fullPayload = "";
+        for (let i = 0; i < totalChunks; i++) {
+            fullPayload += receivedChunks[i];
+        }
+
+        try {
+            const parts = fullPayload.split("||");
+            if (parts.length < 2) throw new Error("Payload structure corrupt");
+            
+            const meta = JSON.parse(atob(parts[0]));
+            const fileName = decodeURIComponent(meta.name);
+            const base64Data = parts[1];
+
+            const byteString = atob(base64Data.split(',')[1]);
+            const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            
+            const url = URL.createObjectURL(new Blob([ab], {type: mimeString}));
+            const dlLink = document.getElementById('download-link');
+            dlLink.href = url; dlLink.download = fileName;
+            
+            document.getElementById('global-status').textContent = `受信完了: ${fileName}`;
+            document.getElementById('stat-remain').textContent = `0.0s`;
+            document.getElementById('download-zone').style.display = 'block';
+        } catch (e) {
+            console.error(e);
+            document.getElementById('global-status').textContent = '受信ファイルの復元に失敗しました';
+        }
+    }
+
+    function stopAll() {
+        isCameraRunning = false;
+        isCameraStarting = false;
+        if (videoStream) {
+            try { videoStream.getTracks().forEach(track => track.stop()); } catch (e) { console.warn('stop track error', e); }
+            videoStream = null;
+        }
+        try {
+            const video = document.getElementById('webcam');
+            video.pause();
+            video.srcObject = null;
+        } catch (e) { /* ignore */ }
+        document.getElementById('download-zone').style.display = 'none';
+        document.getElementById('stat-progress').textContent = '0%';
+        document.getElementById('stat-time').textContent = '-- ms';
+        document.getElementById('stat-missing').textContent = '0';
+        const mEl = document.getElementById('missing-list'); if (mEl) mEl.textContent = '欠番: -';
+        document.getElementById('stat-remain').textContent = '--s';
+        document.getElementById('progress-bar-fill').style.width = '0%';
+        document.getElementById('send-fps-counter').textContent = '0';
+        document.getElementById('fps-counter').textContent = '0';
+        window.lastProcessedRetryStr = ''; 
+        updateEngineUI();
+        chunks = []; receivedChunks = {}; totalChunks = 0; isFinished = false; retryQueue = []; receiveStartTime = null;
+    }
+</script>
+</body>
+</html>

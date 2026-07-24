@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMeDAS 観測マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+
+    <section class="panel" aria-label="AMeDAS controls">
+        <label class="field">
+            <span>指標</span>
+            <select id="metricSelect">
+                <option value="temp">気温</option>
+                <option value="precipitation10m">降水量 10分</option>
+                <option value="precipitation1h">降水量 1時間</option>
+                <option value="precipitation3h">降水量 3時間</option>
+                <option value="precipitation24h">降水量 24時間</option>
+                <option value="humidity">湿度</option>
+                <option value="wind">風速</option>
+                <option value="sun10m">日照時間 10分</option>
+                <option value="sun1h">日照時間 1時間</option>
+                <option value="snow1h">積雪量 1時間</option>
+                <option value="snow">積雪深</option>
+                <option value="pressure">気圧 現地</option>
+                <option value="normalPressure">気圧 海面</option>
+            </select>
+        </label>
+
+        <div id="sourceControls" class="source-list"></div>
+        <div id="status" class="status" aria-live="polite"></div>
+    </section>
+
+    <section class="legend" aria-label="legend">
+        <div id="legendTitle" class="legend__title"></div>
+        <div id="legendItems" class="legend__items"></div>
+    </section>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
+</body>
+</html>

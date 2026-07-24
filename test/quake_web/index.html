@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地震情報ビューア (新着時のみ最新遷移 + 観測点SVG震度)</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2307111d'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23ff3b30'/%3E%3Cpath d='M32 18 L32 40 M32 46 L32 48' stroke='%23ffffff' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    
+    <style>
+        * { box-sizing: border-box; font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
+        body { margin: 0; padding: 0; height: 100vh; width: 100vw; background-color: #07111d; color: #ffffff; overflow: hidden; }
+        
+        .layout-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        /* パネル共通スタイル */
+        .panel {
+            background: rgba(17, 24, 39, 0.85);
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 左側（マップと詳細） */
+        .left-panel { flex: 1; position: relative; }
+        #map { position: absolute; inset: 0; z-index: 0; }
+        .leaflet-container { background: #07111d; }
+        
+        /* 詳細情報オーバーレイ */
+        .detail-overlay {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid #475569;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            width: 340px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        /* 右側（リスト） */
+        .right-panel { width: 380px; flex-shrink: 0; z-index: 10; }
+        
+        .list-header {
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid #374151;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-header h2 { margin: 0; font-size: 1.1rem; color: #60a5fa; }
+        
+        .list-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* リストアイテム */
+        .list-item {
+            background: #1f2937;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 6px solid transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .list-item:hover { background: #374151; transform: translateX(2px); }
+        .list-item.active { background: #374151; outline: 2px solid #3b82f6; outline-offset: -1px; }
+
+        .item-top { display: flex; justify-content: space-between; align-items: baseline; }
+        .item-time { font-size: 0.75rem; color: #9ca3af; }
+        .item-scale { font-size: 1.1rem; font-weight: bold; }
+        .item-name { font-size: 0.95rem; font-weight: 600; color: #f3f4f6; margin-top: 2px; }
+        .item-meta { font-size: 0.75rem; color: #9ca3af; }
+
+        /* スクロールバー */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        /* マップの震央マーカー */
+        .epicenter-marker {
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 0, 0, 0.6);
+            border: 2px solid #ff4444;
+            border-radius: 50%;
+            position: relative;
+            animation: pulse 2s infinite;
+            z-index: 1000 !important;
+        }
+        .epicenter-marker::after {
+            content: "×";
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            line-height: 1;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+
+        /* 観測点マーカー用の透明なコンテナ */
+        .station-icon-wrapper {
+            background: transparent;
+            border: none;
+        }
+        .station-svg-badge {
+            display: block;
+            overflow: visible;
+            pointer-events: none;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.65));
+        }
+
+        /* ユーティリティ */
+        .text-xs { font-size: 0.75rem; }
+        .text-sm { font-size: 0.875rem; color: #9ca3af; }
+        .text-lg { font-size: 1.125rem; font-weight: bold; }
+        .text-2xl { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.25rem; }
+        .text-3xl { font-size: 2rem; font-weight: 900; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .flex-row { display: flex; justify-content: space-between; gap: 1rem; }
+        .box { background: #1e293b; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #334155; flex: 1; text-align: center; }
+        .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: bold; margin-bottom: 0.5rem; background-color: #374151; }
+        
+        /* ローディング */
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #60a5fa;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="layout-container">
+        <div class="panel left-panel">
+            <div id="map"></div>
+            
+            <div class="detail-overlay" id="detail-overlay">
+                <div style="color: #9ca3af; text-align: center; margin-top: 2rem;">
+                    データを取得中...
+                </div>
+            </div>
+        </div>
+
+        <div class="panel right-panel">
+            <div class="list-header">
+                <h2>地震情報履歴</h2>
+                <div id="loading-spinner" class="spinner hidden"></div>
+            </div>
+            <div class="list-content" id="eq-list">
+                </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script>
+        // --- 設定 ---
+        const API_URL = 'https://earthquake-api-v2.nakn.jp/api/v2/list';
+        const POLL_INTERVAL_MS = 5000;
+        // 初期表示は最大でも「地方」表示まで。観測点・市区町村表示には手動ズームが必要。
+        const INITIAL_VIEW_MAX_ZOOM = 9;
+        const INITIAL_VIEW_MIN_ZOOM = 4;
+        const INITIAL_VIEW_PADDING = [110, 90];
+        // 5秒ごとに一覧は更新するが、地図/詳細は「新しい電文が出た時」だけ最新へ遷移する。
+        // 手動で過去地震を見ている場合、同じ最新情報を再取得しただけでは勝手に戻らない。
+        const AUTO_SELECT_LATEST_ONLY_ON_NEW_REPORT = true;
+        // 詳細JSONは複数URLを同時取得する。list本体は単一APIなので並列化不可。
+        const DETAIL_FETCH_TIMEOUT_MS = 6500;
+        const DETAIL_CACHE_MAX_ITEMS = 80;
+        const JAPAN_GEOJSON_URL = '../../Telop/japan.geojson'; 
+        // ★ 観測点マスターデータ。ブラウザCORS対策のため、まずローカル同一オリジンを読む。
+        // 配置例: index.html と同じ場所に EqMap_seismograph/stations.json を置く
+        // ※ https://tool.ikunocam.net/... は CORS ヘッダーが無い場合、localhost から fetch できません。
+        const STATIONS_JSON_URLS = [
+            './../../EqMap_seismograph/stations.json',
+        ];
+
+        // --- 状態管理 ---
+        let map;
+        let japanLayer = null;
+        let epicenterMarker = null;
+        let stationMarkersLayer = null; // 観測点マーカーのグループ
+        let eqDataList = [];
+        let selectedEqId = null;
+        let stationMasterData = []; // 観測点の辞書(リスト/オブジェクトどちらも対応)
+        let stationIndexByCode = new Map();
+        let stationIndexByName = new Map();
+        let selectedDetailInfoTitle = '';
+        let currentActiveStations = []; // 現在選択中の地震で描画対象になる観測点+震度
+        let latestListSignature = '';
+        let pollingTimer = null;
+        let isFetchingData = false;
+        const detailJsonCache = new Map();
+        const pendingDetailFetches = new Map();
+
+        // --- 初期化 ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            initMap();
+            // 先に観測点マスターデータを読み込む
+            await loadStationsMaster();
+            startAutoPolling();
+        });
+
+        // 観測点マスターデータ (stations.json) を読み込む
+        async function loadStationsMaster() {
+            let lastError = null;
+
+            for (const url of STATIONS_JSON_URLS) {
+                try {
+                    const response = await fetch(url, { cache: 'force-cache' });
+                    if (!response.ok) {
+                        console.warn(`stations.json候補を読み込めません: ${url} / HTTP ${response.status}`);
+                        continue;
+                    }
+
+                    stationMasterData = await response.json();
+                    rebuildStationIndexes();
+
+                    console.log(`観測点マスターデータを読み込みました: ${url} / code=${stationIndexByCode.size} / name=${stationIndexByName.size}`);
+                    hideStationMasterWarning();
+                    return true;
+                } catch (e) {
+                    lastError = e;
+                    console.warn(`stations.json候補の読み込み失敗: ${url}`, e);
+                }
+            }
+
+            console.warn('stations.jsonを読み込めませんでした。CORS対策としてローカル配置してください。', lastError);
+            showStationMasterWarning();
+            return false;
+        }
+
+        function showStationMasterWarning() {
+            if (document.getElementById('station-master-warning')) return;
+
+            const warning = document.createElement('div');
+            warning.id = 'station-master-warning';
+            warning.style.cssText = `
+                position:absolute; left:1rem; bottom:1rem; z-index:1200;
+                max-width:520px; padding:0.9rem 1rem; border-radius:0.75rem;
+                background:rgba(127,29,29,0.94); border:1px solid rgba(248,113,113,0.75);
+                color:#fff; font-size:0.86rem; line-height:1.55; box-shadow:0 12px 28px rgba(0,0,0,0.45);
+            `;
+            warning.innerHTML = `
+                <b>観測点マスター stations.json を読み込めません。</b><br>
+                <code>https://tool.ikunocam.net/...</code> はCORSでブロックされるため、
+                <code>index.html</code> と同じ場所に <code>EqMap_seismograph/stations.json</code> を置いてください。
+                <div style="margin-top:0.55rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button id="station-file-button" type="button" style="cursor:pointer; border:0; border-radius:0.45rem; padding:0.35rem 0.7rem; font-weight:700;">stations.jsonを選択</button>
+                    <span style="font-size:0.78rem; opacity:0.9;">一時的にファイル選択でも読み込めます</span>
+                </div>
+            `;
+
+            const leftPanel = document.querySelector('.left-panel') || document.body;
+            leftPanel.appendChild(warning);
+
+            const input = document.createElement('input');
+            input.id = 'station-file-input';
+            input.type = 'file';
+            input.accept = '.json,application/json';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+
+            document.getElementById('station-file-button').addEventListener('click', () => input.click());
+            input.addEventListener('change', handleStationFileSelected);
+        }
+
+        function hideStationMasterWarning() {
+            document.getElementById('station-master-warning')?.remove();
+            document.getElementById('station-file-input')?.remove();
+        }
+
+        async function handleStationFileSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                stationMasterData = JSON.parse(text);
+                rebuildStationIndexes();
+                hideStationMasterWarning();
+
+                console.log(`観測点マスターデータをファイルから読み込みました: code=${stationIndexByCode.size} / name=${stationIndexByName.size}`);
+
+                if (selectedEqId) {
+                    await selectEarthquake(selectedEqId);
+                }
+            } catch (e) {
+                alert('stations.jsonの読み込みに失敗しました。JSON形式を確認してください。');
+                console.error('stations.jsonファイル読み込み失敗:', e);
+            }
+        }
+
+        // --- マップの初期化 ---
+        function initMap() {
+            map = L.map('map', {
+                center: [36.0, 138.0],
+                zoom: 5,
+                zoomControl: false,
+                attributionControl: false
+            });
+
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // GeoJSON描画
+            fetch(JAPAN_GEOJSON_URL, { cache: 'force-cache' })
+                .then(response => {
+                    if (!response.ok) throw new Error('GeoJSON load failed');
+                    return response.json();
+                })
+                .then(geoJsonData => {
+                    japanLayer = L.geoJSON(geoJsonData, {
+                        style: {
+                            color: '#4f6b83', fillColor: '#132437',
+                            fillOpacity: 0.88, opacity: 0.9, weight: 0.7,
+                        }
+                    }).addTo(map);
+                })
+                .catch(error => { console.warn("GeoJSONの読み込みに失敗:", error); });
+                
+            // 観測点マーカー用のレイヤーグループを作成
+            stationMarkersLayer = L.layerGroup().addTo(map);
+
+            // ズームに応じて 観測点 → 市区町村 → 地方 → 都道府県 に自動集約
+            map.on('zoomend', () => {
+                renderIntensityMarkers();
+            });
+        }
+
+        // --- データ取得 (一覧) ---
+        async function fetchData(options = {}) {
+            if (isFetchingData) return;
+            isFetchingData = true;
+
+            const { forceSelectLatest = false } = options;
+            const spinner = document.getElementById('loading-spinner');
+            spinner.classList.remove('hidden');
+
+            try {
+                const urlWithCacheBust = API_URL.includes('?') ? `${API_URL}&t=${Date.now()}` : `${API_URL}?t=${Date.now()}`;
+                const response = await fetch(urlWithCacheBust, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const json = await response.json();
+                const data = json.items || [];
+                if (data.length === 0) return;
+
+                const latest = data[0];
+                const newSignature = getLatestListSignature(latest);
+                const isFirstLoad = eqDataList.length === 0;
+
+                // 「新規に情報が出た」を判定するため、一覧更新前の最新シグネチャを保持。
+                // _id が変わる新しい地震、同じ eventId で VXSE51→VXSE53 のように lists が増える更新、
+                // 最大震度/震源/規模などの変更をまとめて新着扱いにする。
+                const previousLatestSignature = latestListSignature;
+                const latestUpdated = Boolean(previousLatestSignature) && newSignature !== previousLatestSignature;
+
+                // 一覧は毎回内部更新。右側リストだけは常に最新化する。
+                eqDataList = data;
+                renderList();
+
+                if (newSignature !== latestListSignature) {
+                    latestListSignature = newSignature;
+                }
+
+                // 地図/詳細を最新へ遷移する条件：
+                // 1) 初回ロード
+                // 2) 明示的に最新選択を要求した場合
+                // 3) まだ何も選択していない場合
+                // 4) 前回取得時から最新情報のシグネチャが変わった場合のみ
+                //
+                // つまり、ユーザーが過去地震を見ている時に「同じ最新情報」を5秒ごとに再取得しても、
+                // 勝手に最新へ戻らない。
+                const shouldSelectLatest = isFirstLoad
+                    || forceSelectLatest
+                    || !selectedEqId
+                    || (AUTO_SELECT_LATEST_ONLY_ON_NEW_REPORT && latestUpdated);
+
+                if (shouldSelectLatest && latest?._id) {
+                    await selectEarthquake(latest._id);
+                } else if (selectedEqId) {
+                    // 選択中のカード表示だけは最新一覧に合わせて更新。地図/詳細は動かさない。
+                    document.querySelectorAll('.list-item').forEach(el => {
+                        el.classList.toggle('active', el.dataset.id === selectedEqId);
+                    });
+                }
+            } catch (error) {
+                console.error("データの取得に失敗しました:", error);
+            } finally {
+                spinner.classList.add('hidden');
+                isFetchingData = false;
+            }
+        }
+
+        function startAutoPolling() {
+            if (pollingTimer) clearTimeout(pollingTimer);
+
+            const run = async () => {
+                await fetchData({ forceSelectLatest: false });
+                pollingTimer = setTimeout(run, POLL_INTERVAL_MS);
+            };
+
+            run();
+        }
+
+        function getLatestListSignature(eq) {
+            if (!eq) return '';
+            const lists = Array.isArray(eq.lists) ? eq.lists : [];
+            const last = lists[lists.length - 1] || {};
+            return [
+                eq._id || '',
+                eq.eventId || '',
+                eq.originTimeNew || eq.originTime || '',
+                eq.int || '',
+                eq.hypoName || '',
+                eq.depth || '',
+                eq.magnitude || '',
+                lists.length,
+                last.id || '',
+                last.url || '',
+                last.datetime || '',
+                last.serial || '',
+                last.title || ''
+            ].join('|');
+        }
+
+        // --- 右側：リストの描画 ---
+        function renderList() {
+            const listContainer = document.getElementById('eq-list');
+            listContainer.innerHTML = '';
+
+            eqDataList.forEach(eq => {
+                const maxScale = eq.int || '不明';
+                const scaleColor = getScaleColor(maxScale);
+                const name = eq.hypoName || '震源地不明';
+                const time = eq.originTime || '時刻不明';
+                const mag = eq.magnitude ? `M${eq.magnitude}` : 'M不明';
+                const depth = eq.depth ? `深さ ${eq.depth}km` : '深さ 不明';
+
+                const item = document.createElement('div');
+                item.className = `list-item ${eq._id === selectedEqId ? 'active' : ''}`;
+                item.dataset.id = eq._id;
+                item.style.borderLeftColor = scaleColor;
+                
+                item.innerHTML = `
+                    <div class="item-top">
+                        <span class="item-time">${time}</span>
+                        <span class="item-scale" style="color: ${scaleColor}">震度 ${maxScale}</span>
+                    </div>
+                    <div class="item-name">${name}</div>
+                    <div class="item-meta">${mag} / ${depth}</div>
+                `;
+
+                item.addEventListener('click', () => selectEarthquake(eq._id));
+                listContainer.appendChild(item);
+            });
+        }
+
+        // --- 地震の選択と左パネル・マップの更新 ---
+        async function selectEarthquake(id) {
+            selectedEqId = id;
+            selectedDetailInfoTitle = '';
+            const eq = eqDataList.find(d => d._id === id);
+            if (!eq) return;
+
+            document.querySelectorAll('.list-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === id);
+            });
+
+            renderDetails(eq, true);
+
+            let detailData = null;
+            let bestCandidate = null;
+
+            // 重要:
+            // ここが体感速度に一番効く部分。
+            // 以前は eq.lists を 1件ずつ await していたため、VXSE51→VXSE52→VXSE53 の詳細取得が直列でした。
+            // 現在は全URLを Promise.allSettled で同時取得し、観測点震度が最も多いJSONを採用します。
+            if (eq.lists && eq.lists.length > 0) {
+                const candidates = await fetchDetailCandidatesParallel(eq.lists);
+
+                candidates.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    // 同点なら新しい/後ろ側の電文を優先
+                    return b.originalIndex - a.originalIndex;
+                });
+
+                bestCandidate = candidates[0] || null;
+                if (bestCandidate) {
+                    detailData = bestCandidate.json;
+                    selectedDetailInfoTitle = bestCandidate.title || '';
+                    console.log('採用した詳細JSON:', {
+                        title: bestCandidate.title,
+                        observedStations: bestCandidate.observedCount,
+                        score: bestCandidate.score,
+                        url: bestCandidate.url,
+                        fromCache: bestCandidate.fromCache
+                    });
+                }
+            }
+
+            renderDetails(eq, false, detailData);
+            updateMap(detailData);
+        }
+
+        async function fetchDetailCandidatesParallel(lists) {
+            const targets = (Array.isArray(lists) ? lists : [])
+                .map((item, originalIndex) => ({ item, originalIndex }))
+                .filter(({ item }) => item && item.url)
+                .reverse(); // 新しい電文を先に投げる。取得自体は並列。
+
+            const settled = await Promise.allSettled(
+                targets.map(({ item, originalIndex }) =>
+                    fetchDetailJson(item.url).then(json => ({ json, item, originalIndex }))
+                )
+            );
+
+            const candidates = [];
+
+            settled.forEach(result => {
+                if (result.status !== 'fulfilled') return;
+                const { json, item, originalIndex } = result.value;
+                if (!json) return;
+
+                const observedCount = collectObservedStations(json).length;
+                const score = scoreDetailJson(json, observedCount);
+
+                candidates.push({
+                    json,
+                    score,
+                    observedCount,
+                    title: item.title || '',
+                    url: item.url || '',
+                    originalIndex,
+                    fromCache: detailJsonCache.has(item.url)
+                });
+            });
+
+            return candidates;
+        }
+
+        async function fetchDetailJson(url) {
+            if (!url) return null;
+
+            // 同じ詳細JSON URLは基本的に内容が固定なので、内部キャッシュする。
+            // 5秒ポーリングのたびに同じ VXSE53 を取り直さないため、体感がかなり軽くなる。
+            if (detailJsonCache.has(url)) {
+                return detailJsonCache.get(url);
+            }
+            if (pendingDetailFetches.has(url)) {
+                return pendingDetailFetches.get(url);
+            }
+
+            const task = (async () => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), DETAIL_FETCH_TIMEOUT_MS);
+
+                try {
+                    // 詳細JSONはURLごとに一意なので、毎回 t= を付けない。
+                    // ブラウザキャッシュ + 内部Mapキャッシュを効かせる。
+                    const response = await fetch(url, {
+                        cache: 'force-cache',
+                        signal: controller.signal
+                    });
+                    if (!response.ok) return null;
+
+                    const json = await response.json();
+                    putDetailJsonCache(url, json);
+                    return json;
+                } catch (error) {
+                    if (error?.name !== 'AbortError') {
+                        console.warn('詳細JSON取得失敗:', url, error);
+                    }
+                    return null;
+                } finally {
+                    clearTimeout(timeoutId);
+                    pendingDetailFetches.delete(url);
+                }
+            })();
+
+            pendingDetailFetches.set(url, task);
+            return task;
+        }
+
+        function putDetailJsonCache(url, json) {
+            detailJsonCache.set(url, json);
+
+            // 雑な肥大化防止。古い順に削る。
+            while (detailJsonCache.size > DETAIL_CACHE_MAX_ITEMS) {
+                const firstKey = detailJsonCache.keys().next().value;
+                detailJsonCache.delete(firstKey);
+            }
+        }
+
+
+        function scoreDetailJson(detailJson, observedCount = null) {
+            const stationCount = observedCount ?? collectObservedStations(detailJson).length;
+            const hasObservation = !!detailJson?.Body?.Intensity?.Observation;
+            const hasHypocenter = !!detailJson?.Body?.Earthquake?.Hypocenter;
+            const title = String(detailJson?.Head?.Title || detailJson?.Control?.Title || '');
+
+            // 観測点ごとの震度がある電文を最優先。
+            // 「震源・震度に関する情報」は観測点を持つ可能性が高いので加点します。
+            let score = 0;
+            score += stationCount * 1000;
+            if (hasObservation) score += 100;
+            if (hasHypocenter) score += 10;
+            if (title.includes('震源・震度')) score += 50;
+            if (title.includes('震度速報')) score += 20;
+            return score;
+        }
+
+        function renderDetails(eq, isLoading = false, detailJson = null) {
+            const maxScale = eq.int || '不明';
+            const scaleColor = getScaleColor(maxScale);
+            const name = eq.hypoName || '震源地不明';
+            const time = eq.originTime || '不明';
+            const mag = eq.magnitude ? parseFloat(eq.magnitude).toFixed(1) : '-';
+            const depth = eq.depth ? `${eq.depth} km` : '不明';
+
+            let infoTitle = "地震情報";
+            let publishOffice = "";
+            if (selectedDetailInfoTitle) {
+                infoTitle = selectedDetailInfoTitle;
+            } else if (eq.lists && eq.lists.length > 0) {
+                infoTitle = eq.lists[eq.lists.length - 1].title || "地震情報";
+            }
+
+            let tsunamiStr = isLoading ? "情報を取得中..." : "情報なし";
+            if (detailJson && detailJson.Body && detailJson.Body.Comments && detailJson.Body.Comments.Observation) {
+                tsunamiStr = detailJson.Body.Comments.Observation;
+            }
+            if (detailJson && detailJson.Control && detailJson.Control.PublishingOffice) {
+                publishOffice = detailJson.Control.PublishingOffice;
+            }
+
+            const html = `
+                <span class="badge">${infoTitle}</span>
+                <div class="mb-4">
+                    <div class="text-sm">発生時刻</div>
+                    <div class="text-lg">${time}</div>
+                </div>
+                <div class="mb-4">
+                    <div class="text-sm">震央地</div>
+                    <div class="text-2xl" style="color: #f8fafc;">${name}</div>
+                </div>
+                <div class="flex-row mb-4">
+                    <div class="box">
+                        <div class="text-sm">最大震度</div>
+                        <div class="text-3xl" style="color: ${scaleColor}; text-shadow: 0 0 10px ${scaleColor}80;">${maxScale}</div>
+                    </div>
+                    <div class="box">
+                        <div class="text-sm">マグニチュード</div>
+                        <div class="text-3xl" style="color: #f8fafc;">${mag}</div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <span class="text-sm">震源の深さ:</span>
+                    <span class="text-lg ml-2">${depth}</span>
+                </div>
+                <div class="mb-2">
+                    <span class="text-sm">付加情報:</span>
+                    <span class="text-xs ml-2" style="color: ${isLoading ? '#9ca3af' : '#ffffff'};">${tsunamiStr}</span>
+                </div>
+                <div style="margin-top: 1.5rem; font-size: 0.7rem; color: #64748b; border-top: 1px solid #334155; padding-top: 0.5rem;">
+                    ${publishOffice ? `発表元: ${publishOffice}` : ''}
+                </div>
+            `;
+            document.getElementById('detail-overlay').innerHTML = html;
+        }
+
+        // --- マップの更新（震央ピン ＆ 観測点/市区町村/地方のSVG描画） ---
+        function updateMap(detailJson) {
+            // 既存の震央マーカーを消去
+            if (epicenterMarker) {
+                map.removeLayer(epicenterMarker);
+                epicenterMarker = null;
+            }
+            stationMarkersLayer.clearLayers();
+            currentActiveStations = [];
+
+            if (!detailJson || !detailJson.Body) {
+                map.setView([36.0, 138.0], 5, { animate: true, duration: 1 });
+                return;
+            }
+
+            // 1. 震央マーカーの描画
+            let eqLat = null, eqLon = null;
+            if (detailJson.Body.Earthquake && detailJson.Body.Earthquake.Hypocenter) {
+                const hypo = detailJson.Body.Earthquake.Hypocenter;
+                eqLat = parseFloat(hypo.LatitudeA ?? hypo.Latitude);
+                eqLon = parseFloat(hypo.LongitudeA ?? hypo.Longitude);
+
+                if (!isNaN(eqLat) && !isNaN(eqLon)) {
+                    const icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div class="epicenter-marker" style="z-index: 1000;"></div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    epicenterMarker = L.marker([eqLat, eqLon], { icon }).addTo(map);
+                }
+            }
+
+            // 2. 観測点震度を detailJson から取得し、stations.json の座標と突き合わせる
+            const observedStations = collectObservedStations(detailJson);
+            const activeStations = [];
+            const seenStationKeys = new Set();
+
+            observedStations.forEach(obs => {
+                const masterInfo = findStationMaster(obs);
+                if (!masterInfo) {
+                    console.warn('stations.jsonに一致する観測点が見つかりません:', obs);
+                    return;
+                }
+
+                const lat = parseFloat(masterInfo.lat);
+                const lon = parseFloat(masterInfo.lon);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+                const label = normalizeScaleLabel(obs.int);
+                if (!label) return;
+
+                const key = `${normalizeStationCode(obs.code || masterInfo.code)}-${normalizeStationName(obs.name || masterInfo.name)}-${label}`;
+                if (seenStationKeys.has(key)) return;
+                seenStationKeys.add(key);
+
+                activeStations.push({
+                    lat,
+                    lon,
+                    int: label,
+                    code: String(obs.code || masterInfo.code || ''),
+                    name: obs.name || masterInfo.name || '',
+                    prefCode: obs.prefCode || masterInfo.prefCode || '',
+                    prefName: obs.prefName || masterInfo.prefName || '',
+                    areaCode: obs.areaCode || masterInfo.areaCode || '',
+                    areaName: obs.areaName || masterInfo.areaName || '',
+                    cityCode: obs.cityCode || masterInfo.cityCode || '',
+                    cityName: obs.cityName || masterInfo.cityName || '',
+                    affi: masterInfo.affi || ''
+                });
+            });
+
+            currentActiveStations = activeStations;
+            renderIntensityMarkers();
+
+            console.log(`観測震度を照合: 観測点=${observedStations.length} / 座標一致=${currentActiveStations.length}`);
+
+            // 3. 初期視点。
+            // 中心は必ず震源地に置く。ズームは「観測点がはみ出さない」範囲まで自動で下げる。
+            // ただし最大でも INITIAL_VIEW_MAX_ZOOM=9、つまり「地方」表示までに制限する。
+            setInitialEarthquakeView(eqLat, eqLon, currentActiveStations);
+        }
+
+        function setInitialEarthquakeView(eqLat, eqLon, stations) {
+            const hasEpicenter = Number.isFinite(eqLat) && Number.isFinite(eqLon);
+            const stationPoints = (stations || [])
+                .filter(st => Number.isFinite(st.lat) && Number.isFinite(st.lon))
+                .map(st => [st.lat, st.lon]);
+
+            if (hasEpicenter) {
+                const center = [eqLat, eqLon];
+                const points = [...stationPoints, center];
+                const zoom = getBestZoomForEpicenterCenteredView(center, points, INITIAL_VIEW_MAX_ZOOM, INITIAL_VIEW_MIN_ZOOM, INITIAL_VIEW_PADDING);
+
+                map.setView(center, zoom, {
+                    animate: true,
+                    duration: 1
+                });
+
+                // setView直後に現在ズームへ合わせて集約表示を更新する
+                setTimeout(renderIntensityMarkers, 0);
+                return;
+            }
+
+            if (stationPoints.length >= 1) {
+                map.fitBounds(stationPoints, {
+                    padding: INITIAL_VIEW_PADDING,
+                    maxZoom: INITIAL_VIEW_MAX_ZOOM,
+                    animate: true,
+                    duration: 1
+                });
+                setTimeout(renderIntensityMarkers, 0);
+                return;
+            }
+
+            map.setView([36.0, 138.0], 5, { animate: true, duration: 1 });
+            setTimeout(renderIntensityMarkers, 0);
+        }
+
+        function getBestZoomForEpicenterCenteredView(center, points, maxZoom, minZoom, padding) {
+            if (!map || !map.getSize) return minZoom;
+
+            const mapSize = map.getSize();
+            if (!mapSize || mapSize.x <= 0 || mapSize.y <= 0) return minZoom;
+
+            const padX = Array.isArray(padding) ? padding[0] : padding;
+            const padY = Array.isArray(padding) ? padding[1] : padding;
+
+            const allowedX = Math.max(24, mapSize.x / 2 - padX);
+            const allowedY = Math.max(24, mapSize.y / 2 - padY);
+            const centerLatLng = L.latLng(center[0], center[1]);
+            const validPoints = (points || [])
+                .filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+                .map(p => L.latLng(p[0], p[1]));
+
+            for (let zoom = maxZoom; zoom >= minZoom; zoom--) {
+                const centerPoint = map.project(centerLatLng, zoom);
+                const allVisible = validPoints.every(point => {
+                    const p = map.project(point, zoom);
+                    return Math.abs(p.x - centerPoint.x) <= allowedX && Math.abs(p.y - centerPoint.y) <= allowedY;
+                });
+
+                if (allVisible) return zoom;
+            }
+
+            return minZoom;
+        }
+
+        function renderIntensityMarkers() {
+            if (!stationMarkersLayer) return;
+            stationMarkersLayer.clearLayers();
+            if (!currentActiveStations || currentActiveStations.length === 0) return;
+
+            const zoom = map.getZoom();
+            const mode = getIntensityDisplayMode(zoom);
+            const items = buildIntensityDisplayItems(currentActiveStations, mode);
+
+            items.forEach(item => {
+                const icon = createIntensityDivIcon(item, mode);
+                const marker = L.marker([item.lat, item.lon], {
+                    icon,
+                    riseOnHover: true,
+                    zIndexOffset: getScaleRank(item.int) * 100 + (mode === 'station' ? 30 : 0)
+                });
+
+                const modeName = getDisplayModeName(mode);
+                const countLine = item.count && item.count > 1 ? `<br>${modeName}内の観測点: ${item.count}点` : '';
+                const tooltipName = escapeHtml(item.name || item.code || modeName);
+                marker.bindTooltip(`<b>${tooltipName}</b><br>最大震度: ${escapeHtml(item.int)}${countLine}`, {
+                    direction: 'top',
+                    opacity: 0.95
+                });
+                stationMarkersLayer.addLayer(marker);
+            });
+
+            console.log(`表示モード=${mode} zoom=${zoom} 表示数=${items.length}`);
+        }
+
+        function getIntensityDisplayMode(zoom) {
+            // Leafletは zoom値が大きいほど拡大。
+            // さらに強めに集約する設定：
+            // zoom 12以上: 観測点 / zoom 10〜11: 市区町村 / zoom 7〜9: 地方 / zoom 6以下: 都道府県
+            // 低倍率では観測点や市区町村を出さず、密集を避ける。
+            if (zoom >= 12) return 'station';
+            if (zoom >= 10) return 'city';
+            if (zoom >= 7) return 'area';
+            return 'pref';
+        }
+
+        function getDisplayModeName(mode) {
+            if (mode === 'station') return '観測点';
+            if (mode === 'city') return '市区町村';
+            if (mode === 'area') return '地方';
+            if (mode === 'pref') return '都道府県';
+            return '地点';
+        }
+
+        function buildIntensityDisplayItems(stations, mode) {
+            if (mode === 'station') {
+                return stations.map(st => ({
+                    ...st,
+                    count: 1,
+                    displayName: st.name || st.code || '観測点'
+                })).sort((a, b) => getScaleRank(a.int) - getScaleRank(b.int));
+            }
+
+            const groupField = mode === 'city'
+                ? ['cityCode', 'cityName']
+                : mode === 'area'
+                    ? ['areaCode', 'areaName']
+                    : ['prefCode', 'prefName'];
+
+            const [codeKey, nameKey] = groupField;
+            const mapByGroup = new Map();
+
+            stations.forEach(st => {
+                const fallbackCode = st[codeKey] || st.cityCode || st.areaCode || st.prefCode || st.code || st.name;
+                const fallbackName = st[nameKey] || st.cityName || st.areaName || st.prefName || st.name || fallbackCode;
+                const key = `${mode}-${fallbackCode}-${fallbackName}`;
+
+                if (!mapByGroup.has(key)) {
+                    mapByGroup.set(key, {
+                        type: mode,
+                        code: fallbackCode,
+                        name: fallbackName,
+                        int: st.int,
+                        maxRank: getScaleRank(st.int),
+                        latSum: 0,
+                        lonSum: 0,
+                        count: 0,
+                        stationNames: []
+                    });
+                }
+
+                const g = mapByGroup.get(key);
+                g.latSum += st.lat;
+                g.lonSum += st.lon;
+                g.count += 1;
+                if (st.name) g.stationNames.push(st.name);
+
+                const rank = getScaleRank(st.int);
+                if (rank > g.maxRank) {
+                    g.maxRank = rank;
+                    g.int = st.int;
+                }
+            });
+
+            return Array.from(mapByGroup.values()).map(g => ({
+                type: mode,
+                code: g.code,
+                name: g.name,
+                int: g.int,
+                lat: g.latSum / g.count,
+                lon: g.lonSum / g.count,
+                count: g.count,
+                stationNames: g.stationNames
+            })).sort((a, b) => getScaleRank(a.int) - getScaleRank(b.int));
+        }
+
+        function createIntensityDivIcon(item, mode) {
+            const isStation = mode === 'station';
+            const width = isStation ? getStationIconSize(item.int) : getGroupIconWidth(item.name, item.count);
+            const height = isStation ? getStationIconSize(item.int) : 38;
+
+            const html = isStation
+                ? createStationIntensitySvg(item.int)
+                : createGroupIntensitySvg(item.int, item.name, item.count, mode);
+
+            return L.divIcon({
+                className: 'station-icon-wrapper',
+                html,
+                iconSize: [width, height],
+                iconAnchor: [width / 2, height / 2],
+                tooltipAnchor: [0, -(height / 2)]
+            });
+        }
+
+        function getGroupIconWidth(name, count) {
+            const textLen = String(name || '').length;
+            const countLen = count && count > 1 ? String(count).length + 2 : 0;
+            // 集約アイコンは少し小さめにして、低倍率で重なりにくくする。
+            return Math.max(78, Math.min(150, 54 + textLen * 11 + countLen * 7));
+        }
+
+        // --- 観測点データ/表示ヘルパー ---
+        function rebuildStationIndexes() {
+            stationIndexByCode.clear();
+            stationIndexByName.clear();
+
+            const registerStation = (st) => {
+                if (!st) return;
+                const lat = parseFloat(st.lat);
+                const lon = parseFloat(st.lon);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+                const station = {
+                    code: st.code ? String(st.code).trim() : '',
+                    name: st.name ? String(st.name).trim() : '',
+                    lat,
+                    lon,
+                    prefCode: st.prefCode ? String(st.prefCode).trim() : '',
+                    prefName: st.prefName ? String(st.prefName).trim() : '',
+                    areaCode: st.areaCode ? String(st.areaCode).trim() : '',
+                    areaName: st.areaName ? String(st.areaName).trim() : '',
+                    cityCode: st.cityCode ? String(st.cityCode).trim() : '',
+                    cityName: st.cityName ? String(st.cityName).trim() : '',
+                    affi: st.affi ? String(st.affi).trim() : ''
+                };
+
+                if (station.code) {
+                    const code = normalizeStationCode(station.code);
+                    stationIndexByCode.set(code, station);
+                    const noZeroCode = code.replace(/^0+/, '');
+                    if (noZeroCode) stationIndexByCode.set(noZeroCode, station);
+                }
+
+                if (station.name) {
+                    stationIndexByName.set(normalizeStationName(station.name), station);
+                }
+            };
+
+            const visit = (node, keyHint = '') => {
+                if (node == null) return;
+
+                if (Array.isArray(node)) {
+                    const stationFromArray = extractStationFromArray(node, keyHint);
+                    if (stationFromArray) registerStation(stationFromArray);
+                    node.forEach(v => visit(v, keyHint));
+                    return;
+                }
+
+                if (typeof node !== 'object') return;
+
+                const station = extractStationFromObject(node, keyHint);
+                if (station) registerStation(station);
+
+                Object.entries(node).forEach(([key, value]) => {
+                    if (value && typeof value === 'object') visit(value, key);
+                });
+            };
+
+            visit(stationMasterData);
+        }
+
+        function extractStationFromObject(obj, keyHint = '') {
+            let lat = pickNumber(obj, ['lat', 'Lat', 'latitude', 'Latitude', 'LatitudeA', 'y', 'Y', '緯度']);
+            let lon = pickNumber(obj, ['lon', 'lng', 'Lon', 'Lng', 'longitude', 'Longitude', 'LongitudeA', 'x', 'X', '経度']);
+
+            if ((lat == null || lon == null) && obj.position) {
+                lat = lat ?? pickNumber(obj.position, ['lat', 'latitude', 'Latitude', 'y']);
+                lon = lon ?? pickNumber(obj.position, ['lon', 'lng', 'longitude', 'Longitude', 'x']);
+            }
+
+            if ((lat == null || lon == null) && obj.geometry && Array.isArray(obj.geometry.coordinates)) {
+                lon = lon ?? parseNumberLike(obj.geometry.coordinates[0]);
+                lat = lat ?? parseNumberLike(obj.geometry.coordinates[1]);
+            }
+
+            if ((lat == null || lon == null) && Array.isArray(obj.coordinates)) {
+                // GeoJSON風 [lon, lat] と、独自形式 [lat, lon] の両方を判定
+                const a = parseNumberLike(obj.coordinates[0]);
+                const b = parseNumberLike(obj.coordinates[1]);
+                if (isLikelyLon(a) && isLikelyLat(b)) { lon = lon ?? a; lat = lat ?? b; }
+                else if (isLikelyLat(a) && isLikelyLon(b)) { lat = lat ?? a; lon = lon ?? b; }
+            }
+
+            if (lat == null || lon == null) return null;
+
+            let code = pickString(obj, ['code', 'Code', 'stationCode', 'StationCode', 'station_code', 'id', 'ID', '観測点コード']);
+            let name = pickString(obj, ['name', 'Name', 'stationName', 'StationName', 'station_name', '観測点名', '名称']);
+
+            if (!code && /^\d+$/.test(String(keyHint))) code = keyHint;
+            if (!name && keyHint && !/^\d+$/.test(String(keyHint))) name = keyHint;
+
+            return {
+                code,
+                name,
+                lat,
+                lon,
+                prefCode: pickNestedString(obj, [['pref', 'code'], ['Pref', 'Code'], ['prefecture', 'code']]),
+                prefName: pickNestedString(obj, [['pref', 'name'], ['Pref', 'Name'], ['prefecture', 'name']]),
+                areaCode: pickNestedString(obj, [['area', 'code'], ['Area', 'Code']]),
+                areaName: pickNestedString(obj, [['area', 'name'], ['Area', 'Name']]),
+                cityCode: pickNestedString(obj, [['city', 'code'], ['City', 'Code']]),
+                cityName: pickNestedString(obj, [['city', 'name'], ['City', 'Name']]),
+                affi: pickString(obj, ['affi', 'Affi', 'owner', 'Owner', 'agency', 'Agency'])
+            };
+        }
+
+        function extractStationFromArray(arr, keyHint = '') {
+            if (arr.length < 3) return null;
+
+            let lat = null;
+            let lon = null;
+            for (let i = 0; i < arr.length; i++) {
+                for (let j = 0; j < arr.length; j++) {
+                    if (i === j) continue;
+                    const a = parseNumberLike(arr[i]);
+                    const b = parseNumberLike(arr[j]);
+                    if (isLikelyLat(a) && isLikelyLon(b)) { lat = a; lon = b; break; }
+                }
+                if (lat != null && lon != null) break;
+            }
+            if (lat == null || lon == null) return null;
+
+            const strings = arr.filter(v => typeof v === 'string').map(v => v.trim()).filter(Boolean);
+            let code = strings.find(s => /^\d{3,}$/.test(normalizeStationCode(s))) || (/^\d+$/.test(String(keyHint)) ? keyHint : '');
+            let name = strings.find(s => s !== code && !/^\d+$/.test(s)) || (!/^\d+$/.test(String(keyHint)) ? keyHint : '');
+            return { code, name, lat, lon };
+        }
+
+        function collectObservedStations(detailJson) {
+            const root = detailJson?.Body?.Intensity?.Observation || detailJson?.Intensity?.Observation || detailJson;
+            const precise = collectObservedStationsFromJmaTree(root);
+            if (precise.length > 0) return precise;
+            return collectObservedStationsGeneric(root);
+        }
+
+        function collectObservedStationsFromJmaTree(observation) {
+            const results = [];
+            const seen = new Set();
+            const prefs = toArray(observation?.Pref);
+
+            prefs.forEach(pref => {
+                const areas = toArray(pref.Area);
+                areas.forEach(area => {
+                    const cities = toArray(area.City);
+                    cities.forEach(city => {
+                        const stationList = [
+                            ...toArray(city.IntensityStation),
+                            ...toArray(city.Station)
+                        ];
+
+                        stationList.forEach(st => {
+                            const rawInt = pickString(st, ['Int', 'int', 'Intensity', '震度']);
+                            const code = pickString(st, ['Code', 'code', 'StationCode', 'stationCode', '観測点コード']);
+                            const name = pickString(st, ['Name', 'name', 'StationName', 'stationName', '観測点名']);
+                            if (!rawInt || (!code && !name)) return;
+
+                            const label = normalizeScaleLabel(rawInt);
+                            const key = `${normalizeStationCode(code)}-${normalizeStationName(name)}-${label}`;
+                            if (seen.has(key)) return;
+                            seen.add(key);
+
+                            results.push({
+                                code,
+                                name,
+                                int: label,
+                                prefCode: String(pref.Code ?? pref.code ?? ''),
+                                prefName: String(pref.Name ?? pref.name ?? ''),
+                                areaCode: String(area.Code ?? area.code ?? ''),
+                                areaName: String(area.Name ?? area.name ?? ''),
+                                cityCode: String(city.Code ?? city.code ?? ''),
+                                cityName: String(city.Name ?? city.name ?? '')
+                            });
+                        });
+                    });
+                });
+            });
+
+            return results;
+        }
+
+        function collectObservedStationsGeneric(root) {
+            const results = [];
+            const seen = new Set();
+
+            const visit = (node, path = []) => {
+                if (node == null) return;
+
+                if (Array.isArray(node)) {
+                    node.forEach(v => visit(v, path));
+                    return;
+                }
+
+                if (typeof node !== 'object') return;
+
+                const pathText = path.join('.');
+                const keyText = path[path.length - 1] || '';
+                const isStationContext = /(^|\.)(IntensityStation|Station|stations|intensitystations|point|Points|観測点)(\.|$)/i.test(pathText)
+                    || /IntensityStation|Station|stations|intensitystations|point|Points|観測点/i.test(keyText);
+
+                const rawInt = pickString(node, [
+                    'Int', 'int', 'Intensity', 'intensity',
+                    'intensitystationint', 'intensityStationInt', 'stationInt', 'StationInt',
+                    '震度', '観測震度'
+                ]);
+
+                const code = pickString(node, [
+                    'Code', 'code',
+                    'StationCode', 'stationCode', 'station_code',
+                    'intensitystationcode', 'intensityStationCode',
+                    '観測点コード'
+                ]);
+
+                const name = pickString(node, [
+                    'Name', 'name',
+                    'StationName', 'stationName', 'station_name',
+                    'intensitystationname', 'intensityStationName',
+                    '観測点名'
+                ]);
+
+                if (rawInt && (code || name) && isStationContext) {
+                    const label = normalizeScaleLabel(rawInt);
+                    const key = `${normalizeStationCode(code)}-${normalizeStationName(name)}-${label}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        results.push({ code, name, int: label });
+                    }
+                }
+
+                Object.entries(node).forEach(([key, value]) => {
+                    if (value && typeof value === 'object') visit(value, path.concat(key));
+                });
+            };
+
+            visit(root, []);
+            return results;
+        }
+
+        function findStationMaster(obs) {
+            const code = normalizeStationCode(obs.code);
+            if (code && stationIndexByCode.has(code)) return stationIndexByCode.get(code);
+            const noZeroCode = code.replace(/^0+/, '');
+            if (noZeroCode && stationIndexByCode.has(noZeroCode)) return stationIndexByCode.get(noZeroCode);
+
+            const name = normalizeStationName(obs.name);
+            if (name && stationIndexByName.has(name)) return stationIndexByName.get(name);
+
+            // 「＊」付き名称と無し名称の揺れ対策
+            const nameWithoutMark = normalizeStationName(obs.name).replace(/[＊*]/g, '');
+            if (nameWithoutMark && stationIndexByName.has(nameWithoutMark)) return stationIndexByName.get(nameWithoutMark);
+
+            return null;
+        }
+
+        function createStationIntensitySvg(label) {
+            const safeLabel = escapeHtml(normalizeScaleLabel(label));
+            const color = getScaleColor(safeLabel);
+            const rank = getScaleRank(safeLabel);
+            const textColor = rank >= 6 ? '#ffffff' : '#111827';
+            const outlineColor = rank >= 6 ? '#111827' : '#ffffff';
+            const fontSize = safeLabel.length >= 2 ? 19 : 23;
+            const glow = rank >= 5 ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.35)';
+
+            return `
+                <svg class="station-svg-badge" width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="震度 ${safeLabel}">
+                    <rect x="3" y="3" width="38" height="38" rx="11" fill="#000000" opacity="0.65"/>
+                    <rect x="5" y="5" width="34" height="34" rx="9" fill="${color}" stroke="#111827" stroke-width="3"/>
+                    <rect x="7.2" y="7.2" width="29.6" height="29.6" rx="7" fill="none" stroke="${glow}" stroke-width="1.6"/>
+                    <text x="22" y="23"
+                        font-family="Arial, 'Helvetica Neue', sans-serif"
+                        font-size="${fontSize}"
+                        font-weight="900"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        fill="${textColor}"
+                        stroke="${outlineColor}"
+                        stroke-width="3.2"
+                        paint-order="stroke fill"
+                    >${safeLabel}</text>
+                </svg>
+            `;
+        }
+
+        function createGroupIntensitySvg(label, name, count, mode) {
+            const safeLabel = escapeHtml(normalizeScaleLabel(label));
+            const safeName = escapeHtml(String(name || getDisplayModeName(mode)));
+            const safeCount = count && count > 1 ? escapeHtml(`${count}点`) : '';
+            const color = getScaleColor(safeLabel);
+            const rank = getScaleRank(safeLabel);
+            const textColor = rank >= 6 ? '#ffffff' : '#111827';
+            const outlineColor = rank >= 6 ? '#111827' : '#ffffff';
+            const width = getGroupIconWidth(name, count);
+            const nameFontSize = String(name || '').length >= 8 ? 10.5 : 11.5;
+
+            return `
+                <svg class="station-svg-group" width="${width}" height="38" viewBox="0 0 ${width} 38" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${safeName} 最大震度 ${safeLabel}">
+                    <rect x="2" y="3" width="${width - 4}" height="32" rx="10" fill="#000000" opacity="0.70"/>
+                    <rect x="5" y="5" width="32" height="28" rx="8" fill="${color}" stroke="#111827" stroke-width="2.2"/>
+                    <text x="21" y="19"
+                        font-family="Arial, 'Helvetica Neue', sans-serif"
+                        font-size="${safeLabel.length >= 2 ? 15 : 18}"
+                        font-weight="900"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        fill="${textColor}"
+                        stroke="${outlineColor}"
+                        stroke-width="2.8"
+                        paint-order="stroke fill"
+                    >${safeLabel}</text>
+                    <text x="43" y="16"
+                        font-family="'Helvetica Neue', Arial, sans-serif"
+                        font-size="${nameFontSize}"
+                        font-weight="800"
+                        fill="#ffffff"
+                    >${safeName}</text>
+                    ${safeCount ? `<text x="43" y="30" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="#cbd5e1">${safeCount}</text>` : ''}
+                </svg>
+            `;
+        }
+
+        function getStationIconSize(label) {
+            const rank = getScaleRank(label);
+            if (rank >= 6) return 48;
+            if (rank >= 5) return 46;
+            return 42;
+        }
+
+        function getScaleRank(scale) {
+            const str = normalizeScaleLabel(scale);
+            const ranks = { '1': 1, '2': 2, '3': 3, '4': 4, '5-': 5, '5+': 6, '6-': 7, '6+': 8, '7': 9 };
+            return ranks[str] || 0;
+        }
+
+        function toArray(value) {
+            if (value == null) return [];
+            return Array.isArray(value) ? value : [value];
+        }
+
+        function pickNestedString(obj, paths) {
+            for (const path of paths) {
+                let cur = obj;
+                for (const key of path) {
+                    if (cur == null) break;
+                    cur = cur[key];
+                }
+                if (cur != null && String(cur).trim() !== '') return String(cur).trim();
+            }
+            return '';
+        }
+
+        function pickString(obj, keys) {
+            for (const key of keys) {
+                if (obj && obj[key] != null && String(obj[key]).trim() !== '') return String(obj[key]).trim();
+            }
+            return '';
+        }
+
+        function pickNumber(obj, keys) {
+            for (const key of keys) {
+                const num = parseNumberLike(obj?.[key]);
+                if (Number.isFinite(num)) return num;
+            }
+            return null;
+        }
+
+        function parseNumberLike(value) {
+            if (value == null) return NaN;
+            if (typeof value === 'number') return value;
+            const normalized = String(value)
+                .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+                .replace('．', '.')
+                .replace(/[^\x20-\x7E.-]/g, '')
+                .trim();
+            return parseFloat(normalized);
+        }
+
+        function isLikelyLat(value) {
+            return Number.isFinite(value) && value >= 20 && value <= 50;
+        }
+
+        function isLikelyLon(value) {
+            return Number.isFinite(value) && value >= 120 && value <= 155;
+        }
+
+        function normalizeStationCode(code) {
+            return String(code ?? '')
+                .trim()
+                .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+        }
+
+        function normalizeStationName(name) {
+            return String(name ?? '')
+                .trim()
+                .replace(/[\s　]+/g, '')
+                .replace(/[＊*]/g, '')
+                .replace(/[（）]/g, m => m === '（' ? '(' : ')');
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // --- 色変換ヘルパー ---
+        function normalizeScaleLabel(scale) {
+            return String(scale ?? '')
+                .trim()
+                .replace('震度', '')
+                .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+                .replace('弱', '-')
+                .replace('強', '+')
+                .replace('－', '-')
+                .replace('−', '-')
+                .replace('ー', '-')
+                .replace('＋', '+');
+        }
+
+        function getScaleColor(scale) {
+            const str = normalizeScaleLabel(scale);
+            if (str === '1') return '#4da6ff'; 
+            if (str === '2') return '#00ccff'; 
+            if (str === '3') return '#00ff44'; 
+            if (str === '4') return '#ffff00'; 
+            if (str === '5-') return '#ffaa00';
+            if (str === '5+') return '#ff5500';
+            if (str === '6-') return '#ff0000';
+            if (str === '6+') return '#cc0000';
+            if (str === '7') return '#770000'; 
+            return '#9ca3af';
+        }
+    </script>
+</body>
+</html>

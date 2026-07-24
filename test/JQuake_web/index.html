@@ -4,16 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>強震モニター リアルタイムマップ</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2307111d'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%2300d084'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ffffff'/%3E%3C/svg%3E">
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
      
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, sans-serif; overflow: hidden; background-color: #07111d; }
         #map { width: 100vw; height: 100vh; z-index: 1; }
+        .leaflet-container { background: #07111d; }
+        
         .ui-panel { z-index: 1000; }
+        .fixed { position: fixed; }
+        .inset-0 { inset: 0; }
+        .top-4 { top: 1rem; }
+        .left-4 { left: 1rem; }
+        
+        .bg-black-50 { background-color: rgba(0, 0, 0, 0.5); }
+        .bg-white-80 { background-color: rgba(255, 255, 255, 0.8); }
+        .bg-white-90 { background-color: rgba(255, 255, 255, 0.9); }
+        .flex { display: flex; }
+        .hidden { display: none !important; }
+        .justify-center { justify-content: center; }
+        .items-center { align-items: center; }
+        .flex-col { flex-direction: column; }
+        .gap-2 { gap: 0.5rem; }
+        
+        .p-4 { padding: 1rem; }
+        .p-3 { padding: 0.75rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-3 { margin-top: 0.75rem; }
+        .mt-4 { margin-top: 1rem; }
+        
+        .rounded { border-radius: 0.25rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        
+        .max-w-sm { max-width: 24rem; }
+        .max-w-md { max-width: 28rem; }
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+        
+        .text-white { color: #fff; }
+        .text-gray-500 { color: #6b7280; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-800 { color: #1f2937; }
+        .text-red-600 { color: #dc2626; }
+        
+        button { cursor: pointer; border: none; transition: background-color 0.2s; }
+        .bg-blue-600 { background-color: #2563eb; }
+        .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+        .bg-gray-400 { background-color: #9ca3af; }
+        .hover\:bg-gray-500:hover { background-color: #6b7280; }
+        .bg-green-600 { background-color: #16a34a; }
+        .hover\:bg-green-700:hover { background-color: #15803d; }
+
+        #info-panel p, #loading-overlay p { margin-bottom: 0; }
+
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
@@ -23,118 +79,644 @@
             height: 40px;
             animation: spin 1s linear infinite;
         }
+
+        /* 凡例パネル全体 */
+        .map-legend {
+            background: rgba(7, 17, 29, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            bottom: 1.5rem;
+            color: #fff;
+            font-size: 0.85rem;
+            right: 1rem;
+            padding: 0.75rem;
+            position: fixed;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .map-legend-title {
+            margin-bottom: 8px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            padding-bottom: 4px;
+            width: 100%;
+        }
+
+        /* 画像の切り抜き・拡大用のコンテナ */
+        .legend-crop-box {
+            width: 90px;
+            height: 340px; 
+            overflow: hidden; 
+            position: relative;
+            background-color: transparent; 
+            border-radius: 4px;
+        }
+
+        /* Canvas自体の配置設定 */
+        .legend-crop-box canvas {
+            position: absolute;
+            bottom: 15px;  
+            right: 1px;   
+            width: 352px;  
+            max-width: none;
+            transform-origin: bottom right; 
+            transform: scale(1.35); 
+        }
     </style>
 </head>
-<body class="overflow-hidden">
+<body>
 
     <div id="map"></div>
 
-    <div id="loading-overlay" class="ui-panel fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center flex-col hidden">
+    <div id="loading-overlay" class="ui-panel fixed inset-0 bg-black-50 flex justify-center items-center flex-col hidden">
         <div class="spinner"></div>
         <p class="text-white mt-4 text-lg font-semibold">最新データを取得中...</p>
+        <p id="loading-error" class="text-red-600 mt-2 font-bold hidden"></p>
     </div>
     
-    <div id="info-panel" class="ui-panel fixed top-4 left-4 bg-white bg-opacity-80 p-4 rounded-lg shadow-lg max-w-sm">
+    <div id="info-panel" class="ui-panel fixed top-4 left-4 bg-white-80 p-4 rounded-lg shadow-lg max-w-sm">
         <h1 class="text-xl font-bold text-gray-800">強震モニターマップ</h1>
         <p class="text-sm text-gray-600 mt-1">防災科学技術研究所(NIED)の情報を表示しています。</p>
-        <div class="mt-2 text-xs text-gray-500">
-            <p>データ時刻: <span id="data-timestamp" class="font-semibold">N/A</span></p>
-            <p>最終更新 (ローカル): <span id="last-updated" class="font-semibold">N/A</span></p>
+        
+        <div class="mt-3 flex gap-2">
+            <button id="layer-intensity" class="px-3 py-1 bg-blue-600 text-white text-xs rounded font-semibold hover:bg-blue-700">強震度</button>
+            <button id="layer-acceleration" class="px-3 py-1 bg-gray-400 text-white text-xs rounded font-semibold hover:bg-gray-500">最大加速度</button>
+            <button id="layer-abrspmx" class="px-3 py-1 bg-gray-400 text-white text-xs rounded font-semibold hover:bg-gray-500">長周期地震動</button>
+            <button id="home-button" class="px-3 py-1 bg-green-600 text-white text-xs rounded font-semibold hover:bg-green-700">ホーム</button>
+        </div>
+        
+        <div class="mt-2 text-xs text-gray-500" style="font-size: 0.68rem; line-height: 0.95rem;">
+            <p>データ時刻: <span id="data-timestamp" class="font-semibold text-gray-800">N/A</span></p>
+            <p>最終更新 <span style="font-size: 0.62rem;">(ローカル)</span>: <span id="last-updated" class="font-semibold text-gray-800">N/A</span></p>
+        </div>
+        
+        <div id="eew-box" class="mt-4 p-3 rounded-lg bg-white-90 border border-gray-200 max-w-md hidden">
+            <div class="text-xs text-gray-500 font-bold">EEW (緊急地震速報)</div>
+            <div id="eew-status" class="text-sm font-bold text-red-600 mt-1">N/A</div>
+            <div id="eew-region" class="text-xs font-semibold text-gray-600 mt-1">N/A</div>
+            <div id="eew-summary" class="text-xs font-bold text-gray-800 mt-1">N/A</div>
+            <div id="eew-details" class="text-xs text-gray-600 mt-2">N/A</div>
+            <div id="eew-meta" class="text-xs text-gray-400 mt-1 border-t border-gray-200 pt-1">N/A</div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <script>
-        // --- 設定項目 ---
-        const UPDATE_INTERVAL = 5000;
-        
-        // ★★★ 修正: 実行環境を判別し、APIのURLを自動的に切り替える ★★★
-        const PROXY_PROTOCOL = window.location.protocol;
-        const CURRENT_HOST = window.location.hostname;
-        const isProduction = CURRENT_HOST === 'tool.ikunocam.net';
+        const JAPAN_GEOJSON_URL = '../../Telop/japan.geojson';
+        const STATION_POINTS_URL = 'intensity-points-v1.json';
+        const IMAGE_POLL_INTERVAL_MS = 1000;
+        const EEW_POLL_INTERVAL_MS = 1000;
+        const HOME_CENTER = [36.0, 138.0];
+        const HOME_ZOOM = 5;
 
-        let API_URL;
-        if (isProduction) {
-            // 本番環境の場合、api.ikunocam.net を直接指定 (ポートなし)
-            API_URL = `${PROXY_PROTOCOL}//api.ikunocam.net/api/station-colors`;
-        } else {
-            // 開発環境 (localhost, 192.168.x.xなど) の場合、現在のホストにポート3000を付与
-            const PROXY_PORT = 3000;
-            API_URL = `${PROXY_PROTOCOL}//${CURRENT_HOST}:${PROXY_PORT}/api/station-colors`;
-        }
+        // ローカル画像パスを指定
+        const LEGEND_URLS = {
+            jma_s: './nied_jma_s_w_scale.png',
+            acmap_s: './nied_acmap_s_w_scale.png',
+            abrspmx_s: './nied_abrspmx_s_w_scale.png'
+        };
 
-        // --- DOM要素 ---
+        let currentImageType = 'jma_s';
+        let homeBounds = null;
+        let map;
+        let japanLayer;
+        let stationLayer;
+        let stations = [];
+        let imagePollTimer;
+        let eewPollTimer;
+        let currentEew = null;
+        let latestStationState = [];
+
         const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingError = document.getElementById('loading-error');
         const lastUpdatedElement = document.getElementById('last-updated');
         const dataTimestampElement = document.getElementById('data-timestamp');
         
-        // --- グローバル変数 ---
-        let map;
-        let stationMarkersLayer = L.layerGroup();
+        const eewBox = document.getElementById('eew-box');
+        const eewStatusElement = document.getElementById('eew-status');
+        const eewRegionElement = document.getElementById('eew-region');
+        const eewSummaryElement = document.getElementById('eew-summary');
+        const eewDetailsElement = document.getElementById('eew-details');
+        const eewMetaElement = document.getElementById('eew-meta');
+        
+        const layerIntensityBtn = document.getElementById('layer-intensity');
+        const layerAccelerationBtn = document.getElementById('layer-acceleration');
+        const layerAbrspmxBtn = document.getElementById('layer-abrspmx');
+        const homeBtn = document.getElementById('home-button');
 
-        // --- 初期化処理 ---
         document.addEventListener('DOMContentLoaded', initialize);
+        
+        layerIntensityBtn.addEventListener('click', () => switchLayer('jma_s'));
+        layerAccelerationBtn.addEventListener('click', () => switchLayer('acmap_s'));
+        layerAbrspmxBtn.addEventListener('click', () => switchLayer('abrspmx_s'));
+        homeBtn.addEventListener('click', goHome);
 
-        function initialize() {
-            map = L.map('map', { center: [36, 138], zoom: 5, zoomControl: false });
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-            stationMarkersLayer.addTo(map);
-            
-            updateData();
-            setInterval(updateData, UPDATE_INTERVAL);
-        }
+        window.addEventListener('beforeunload', () => {
+            if (imagePollTimer) clearInterval(imagePollTimer);
+            if (eewPollTimer) clearInterval(eewPollTimer);
+        });
 
-        async function updateData() {
+        async function initialize() {
             loadingOverlay.classList.remove('hidden');
+            if (loadingError) loadingError.classList.add('hidden');
+
+            map = L.map('map', {
+                center: HOME_CENTER,
+                zoom: HOME_ZOOM,
+                zoomControl: false,
+                attributionControl: false,
+            });
+
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+            
+            // ズーム時にマーカーサイズを更新
+            map.on('zoomend', updateMarkerSizes);
+            
+            addLegend();
+
             try {
-                // サーバーから処理済みのJSONを取得するだけ
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`サーバーエラー: ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
+                stationLayer = L.geoJSON(null, { pointToLayer: createStationPoint }).addTo(map);
+
+                let japanGeoJson, stationData;
+                try {
+                    const results = await Promise.all([
+                        fetchJson(JAPAN_GEOJSON_URL, { cache: 'force-cache' }),
+                        fetchJson(STATION_POINTS_URL, { cache: 'force-cache' })
+                    ]);
+                    japanGeoJson = results[0];
+                    stationData = results[1];
+                } catch (e) {
+                    console.warn("Could not load local JSON files.", e);
+                    throw new Error("基本データの読み込みに失敗しました。ファイルパスを確認してください。");
                 }
-                const data = await response.json();
-                
-                updateStationMarkers(data.station_data);
-                dataTimestampElement.textContent = data.timestamp;
+
+                if (japanGeoJson) {
+                    japanLayer = L.geoJSON(japanGeoJson, {
+                        style: {
+                            color: '#4f6b83', fillColor: '#132437',
+                            fillOpacity: 0.88, opacity: 0.9, weight: 0.7,
+                        },
+                    }).addTo(map);
+                    homeBounds = japanLayer.getBounds();
+                    map.fitBounds(homeBounds, { padding: [24, 24] });
+                }
+
+                if (stationData) {
+                    stations = normalizeStations(stationData);
+                    drawStations(stations.map(station => ({ ...station, color: '#334155', active: false })));
+                }
+
+                const [imageProxyReady, eewProxyReady] = await Promise.all([
+                    probeProxy(getImageProxyUrl()),
+                    probeProxy('kmoni-eew.php'),
+                ]);
+
+                if (imageProxyReady) {
+                    await updateFromKmoniImage();
+                    imagePollTimer = setInterval(() => void updateFromKmoniImage(), IMAGE_POLL_INTERVAL_MS);
+                } else {
+                    setStatus('画像プロキシに接続できません');
+                }
+
+                if (eewProxyReady) {
+                    await updateEew();
+                    eewPollTimer = setInterval(() => void updateEew(), EEW_POLL_INTERVAL_MS);
+                } else {
+                    renderEewState({ active: false });
+                }
 
             } catch (error) {
-                console.error("データ更新中にエラーが発生しました:", error);
-                dataTimestampElement.innerHTML = `<span class="text-red-600 font-bold">${error.message}</span>`;
+                if (loadingError) {
+                    loadingError.textContent = error.message;
+                    loadingError.classList.remove('hidden');
+                }
+                setStatus(`初期化エラー: ${error.message}`);
             } finally {
-                lastUpdatedElement.textContent = new Date().toLocaleTimeString('ja-JP');
-                loadingOverlay.classList.add('hidden');
+                if (!loadingError || loadingError.classList.contains('hidden')) {
+                    loadingOverlay.classList.add('hidden');
+                }
+                updateLocalTime();
             }
         }
 
-        function updateStationMarkers(stationDataList) {
-            stationMarkersLayer.clearLayers();
-            if (!stationDataList) return;
+        /* 凡例関連の処理 */
+        function addLegend() {
+            const legend = document.createElement('div');
+            legend.id = 'map-legend';
+            legend.className = 'map-legend';
+            document.body.appendChild(legend);
+            updateLegend();
+        }
 
-            stationDataList.forEach(station => {
-                const lat = station[0];
-                const lon = station[1];
-                const rgb = station[2];
-                const color = `rgb(${rgb.join(',')})`;
+        function updateLegend() {
+            const legendElement = document.getElementById('map-legend');
+            if (!legendElement) return;
 
-                const marker = L.circleMarker([lat, lon], {
-                    radius: 6,
-                    fillColor: color,
-                    color: '#fff',
-                    weight: 0.5,
-                    opacity: 1,
-                    fillOpacity: 0.8
+            const imgSrc = LEGEND_URLS[currentImageType];
+            let title = '';
+            if (currentImageType === 'jma_s') title = 'リアルタイム震度';
+            else if (currentImageType === 'acmap_s') title = '最大加速度 (PGA)';
+            else if (currentImageType === 'abrspmx_s') title = '長周期地震動';
+
+            legendElement.innerHTML = `
+                <div class="map-legend-title">指標: ${title}</div>
+                <div class="legend-crop-box">
+                    <canvas id="legend-canvas"></canvas>
+                </div>
+            `;
+            processLegendImage(imgSrc);
+        }
+
+        // アンチエイリアス（グレーの輪郭）も含めて綺麗に白文字に変換する処理
+        function processLegendImage(url) {
+            const canvas = document.getElementById('legend-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            const img = new Image();
+            
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // RGBの最大値と最小値を取得
+                    const max = Math.max(r, g, b);
+                    const min = Math.min(r, g, b);
+                    
+                    // 「無彩色（グレー・黒）」かつ「明るさが一定以下」のピクセルを判定
+                    // （max-min が小さいほど色味がなく白黒グレーに近いことを示す）
+                    if (max < 150 && (max - min) < 20) {
+                        // 黒いピクセルほど白く、グレーのピクセルは明るいグレーに滑らかに反転
+                        data[i] = 255 - r;
+                        data[i + 1] = 255 - g;
+                        data[i + 2] = 255 - b;
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            };
+            
+            img.onerror = () => {
+                console.error(`凡例画像が見つかりません: ${url} (HTMLと同じフォルダに配置してください)`);
+            };
+            
+            img.src = url;
+        }
+
+        function switchLayer(type) {
+            if (currentImageType === type) return;
+            currentImageType = type;
+            updateLayerButtons();
+            updateLegend();
+            void updateFromKmoniImage();
+        }
+
+        function updateLayerButtons() {
+            const activeClass = 'px-3 py-1 bg-blue-600 text-white text-xs rounded font-semibold hover:bg-blue-700 transition-colors';
+            const inactiveClass = 'px-3 py-1 bg-gray-400 text-white text-xs rounded font-semibold hover:bg-gray-500 transition-colors';
+            
+            layerIntensityBtn.className = currentImageType === 'jma_s' ? activeClass : inactiveClass;
+            layerAccelerationBtn.className = currentImageType === 'acmap_s' ? activeClass : inactiveClass;
+            layerAbrspmxBtn.className = currentImageType === 'abrspmx_s' ? activeClass : inactiveClass;
+        }
+
+        function goHome() {
+            if (homeBounds) {
+                map.fitBounds(homeBounds, { padding: [24, 24] });
+            } else {
+                map.setView(HOME_CENTER, HOME_ZOOM);
+            }
+        }
+
+        function getImageProxyUrl() {
+            return `kmoni-image.php?type=${currentImageType}`;
+        }
+
+        /* ピクセル解析とマーカー描画 */
+        async function updateFromKmoniImage() {
+            if (stations.length === 0) return;
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(addCacheBust(getImageProxyUrl()), { cache: 'no-store', signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const blob = await response.blob();
+                const image = await createImageBitmap(blob);
+                const timestamp = response.headers.get('X-Kmoni-Time') || '';
+
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                context.drawImage(image, 0, 0);
+
+                const coloredStations = stations.map(station => {
+                    const { r, g, b, a } = readPixel(context, station.point.x, station.point.y, image.width, image.height);
+                    const active = a > 0 && !isBackgroundColor(r, g, b);
+                    const emphasisRank = active ? getEewColorRank(r, g, b) : 0;
+                    return {
+                        ...station,
+                        color: active ? `rgb(${r}, ${g}, ${b})` : '#334155',
+                        active,
+                        emphasisRank,
+                    };
                 });
-                stationMarkersLayer.addLayer(marker);
+
+                latestStationState = coloredStations;
+                drawStations(coloredStations);
+                
+                if (timestamp) {
+                    setStatus(formatTimestamp(timestamp));
+                    dataTimestampElement.classList.remove('text-red-600');
+                    dataTimestampElement.classList.add('text-gray-800');
+                } else {
+                    setStatus('画像取得成功 (時刻不明)');
+                }
+                updateLocalTime();
+            } catch (error) {
+                setStatus(`取得待機中... (${error.message})`);
+                dataTimestampElement.classList.remove('text-gray-800');
+                dataTimestampElement.classList.add('text-red-600');
+            }
+        }
+
+        /* ズーム連動マーカーリサイズ関数 */
+        function getRadius(isActive, zoomLevel, emphasisRank = 0, isEewRegion = false) {
+            const scale = Math.pow(1.5, zoomLevel - 5);
+            const eewActive = Boolean(currentEew && currentEew.isActive);
+            if (eewActive && (emphasisRank > 0 || isEewRegion)) {
+                const base = 2.4 + Math.max(emphasisRank, isEewRegion ? 1 : 0) * 0.9;
+                return Math.min(base * scale, 18.0);
+            }
+            if (isActive) return Math.min(1.0 * scale, 12.0);
+            return Math.min(0.3 * scale, 6.0);
+        }
+
+        function updateMarkerSizes() {
+            if (!stationLayer || !map) return;
+            const currentZoom = map.getZoom();
+            
+            stationLayer.eachLayer(marker => {
+                if (marker.feature && marker.feature.properties) {
+                    const props = marker.feature.properties;
+                    const newRadius = getRadius(props.active, currentZoom, props.emphasisRank, props.isEewRegion);
+                    marker.setRadius(newRadius);
+                }
             });
         }
-        
+
+        function drawStations(stationList) {
+            if (!stationLayer) return;
+            stationLayer.clearLayers();
+            stationLayer.addData({
+                type: 'FeatureCollection',
+                features: stationList.map(station => {
+                    const isEewRegion = isStationInEewRegion(station);
+                    return ({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [station.lon, station.lat] },
+                    properties: {
+                        code: station.code, name: station.name, region: station.region,
+                        color: station.color, active: station.active,
+                        emphasisRank: station.emphasisRank || 0,
+                        isEewRegion,
+                    },
+                    });
+                }),
+            });
+        }
+
+        function createStationPoint(feature, latlng) {
+            const isActive = feature.properties.active;
+            const currentZoom = map ? map.getZoom() : HOME_ZOOM;
+            const radius = getRadius(isActive, currentZoom, feature.properties.emphasisRank, feature.properties.isEewRegion);
+            const isEewEmphasis = Boolean(currentEew && currentEew.isActive && (feature.properties.emphasisRank > 0 || feature.properties.isEewRegion));
+            
+            const marker = L.circleMarker(latlng, {
+                radius: radius,
+                fillColor: feature.properties.color,
+                fillOpacity: isActive || isEewEmphasis ? 1.0 : 0.4,
+                stroke: true,
+                color: isEewEmphasis ? '#ffffff' : '#1e293b',
+                weight: isEewEmphasis ? 1.4 : 0.5,
+            });
+
+            // ツールチップ
+            const tooltipText = `${escapeHtml(feature.properties.region)} ${escapeHtml(feature.properties.name)}`;
+            marker.bindTooltip(tooltipText, { direction: 'top', opacity: 0.9 });
+            return marker;
+        }
+
+        /* EEWとヘルパー処理群 */
+        async function updateEew() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(addCacheBust('kmoni-eew.php'), { cache: 'no-store', signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (response.status === 204) { renderEewState({ active: false }); return; }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+                const payload = data.data || data.payload || data;
+                const eew = normalizeEew(payload);
+                
+                if (!eew.isActive) { renderEewState({ active: false }); return; }
+
+                const summary = buildEewSummary(eew);
+                const metaParts = [];
+                if (eew.requestTime) metaParts.push(`要求時刻 ${formatTimestamp(eew.requestTime)}`);
+                if (eew.isFinal !== null) metaParts.push(eew.isFinal ? '最終報' : '速報');
+
+                renderEewState({
+                    active: true, title: summary.title, summary: summary.summary,
+                    region: summary.region,
+                    details: buildEewDetails(eew), meta: metaParts.join(' / '),
+                    eew,
+                });
+            } catch (error) { renderEewState({ active: false }); }
+        }
+
+        function renderEewState({ active = true, title, summary, region, details, meta, eew }) {
+            currentEew = active ? (eew || { isActive: true, regionName: region || '' }) : null;
+            if (latestStationState.length > 0) drawStations(latestStationState);
+            if (!active) { eewBox.classList.add('hidden'); return; }
+            eewBox.classList.remove('hidden');
+            eewStatusElement.textContent = title || 'EEW発表中';
+            eewRegionElement.textContent = region || '';
+            eewSummaryElement.textContent = summary || '詳細情報を取得中';
+            eewDetailsElement.innerHTML = details ? details.split('\n').map(escapeHtml).join('<br>') : '';
+            eewMetaElement.textContent = meta || '';
+        }
+
+        function setStatus(message) { dataTimestampElement.textContent = message; }
+        function updateLocalTime() { lastUpdatedElement.textContent = new Date().toLocaleTimeString('ja-JP'); }
+
+        function formatTimestamp(value) {
+            const raw = String(value || '');
+            if (!/^\d{14}$/.test(raw)) return raw;
+            const y = raw.slice(0, 4), m = raw.slice(4, 6), d = raw.slice(6, 8);
+            const h = raw.slice(8, 10), mn = raw.slice(10, 12), s = raw.slice(12, 14);
+            return `${y}/${m}/${d} ${h}:${mn}:${s}`;
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error(`${url} HTTP ${response.status}`);
+            return response.json();
+        }
+
+        async function probeProxy(url) {
+            try { return (await fetch(addQuery(url, 'ping=1'), { cache: 'no-store' })).status === 204; } 
+            catch { return false; }
+        }
+
+        function addQuery(url, query) { return url.includes('?') ? `${url}&${query}` : `${url}?${query}`; }
+        function addCacheBust(url) { return addQuery(url, `t=${Date.now()}`); }
+
+        function readPixel(context, x, y, width, height) {
+            const safeX = Math.max(0, Math.min(width - 1, Math.round(x)));
+            const safeY = Math.max(0, Math.min(height - 1, Math.round(y)));
+            const [r, g, b, a] = context.getImageData(safeX, safeY, 1, 1).data;
+            return { r, g, b, a };
+        }
+
+        function isBackgroundColor(r, g, b) {
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            if (max < 18) return true;
+            if (max - min < 6 && max < 90) return true;
+            return false;
+        }
+
+        function getEewColorRank(r, g, b) {
+            const greenThreshold = { r: 42, g: 239, b: 76 }; // #2aef4c
+            if (r >= 190 && g < 95 && b <= 100) return 4;
+            if (r >= 220 && g >= 95 && g < 170 && b <= 90) return 3;
+            if (r >= 210 && g >= 170 && b <= 90) return 2;
+            if (colorDistance(r, g, b, greenThreshold) <= 95 || (g >= 150 && r >= 20 && b <= 120)) return 1;
+            return 0;
+        }
+
+        function colorDistance(r, g, b, color) {
+            return Math.hypot(r - color.r, g - color.g, b - color.b);
+        }
+
+        function isStationInEewRegion(station) {
+            if (!currentEew || !currentEew.isActive || !currentEew.regionName) return false;
+            const stationRegion = normalizeRegionName(station.region);
+            const eewRegion = normalizeRegionName(currentEew.regionName);
+            return Boolean(stationRegion && eewRegion && (eewRegion.includes(stationRegion) || stationRegion.includes(eewRegion)));
+        }
+
+        function normalizeRegionName(value) {
+            return String(value || '').replace(/[都道府県地方東西南北部沖]/g, '').replace(/\s+/g, '');
+        }
+
+        function normalizeStations(stationData) {
+            if (!Array.isArray(stationData)) return [];
+            return stationData.filter(s => s && !s.IsSuspended && s.Location && s.Point
+                && Number.isFinite(Number(s.Location.latitude)) && Number.isFinite(Number(s.Location.longitude))
+                && Number.isFinite(Number(s.Point.x)) && Number.isFinite(Number(s.Point.y))
+            ).map(s => ({
+                code: s.Code || '', name: s.Name || '', region: s.Region || '',
+                lat: Number(s.Location.latitude), lon: Number(s.Location.longitude),
+                point: { x: Number(s.Point.x), y: Number(s.Point.y) },
+            }));
+        }
+
+        function normalizeEew(payload) {
+            const status = pickString(payload, ['result.status', 'status']) || '';
+            const message = pickString(payload, ['result.message', 'message']) || '';
+            const regionName = pickString(payload, ['region_name', 'regionName', 'area_name', 'areaName']) || '';
+            const originTime = pickString(payload, ['origin_time', 'originTime', 'time']) || '';
+            const isActive = regionName !== '' || originTime !== '' || !['データがありません', 'No data available', 'no data', 'なし'].includes(message.trim());
+
+            return {
+                status, message, requestTime: pickString(payload, ['request_time', 'requestTime']) || '',
+                regionName, originTime,
+                alertFlag: pickString(payload, ['alertflg', 'alertFlag', 'alert_flg']) || '',
+                magnitude: pickString(payload, ['magnitude', 'magunitude', 'mag', 'magnitude_value']) || '',
+                depth: pickString(payload, ['depth', 'depth_km', 'depthKm']) || '',
+                maxIntensity: pickString(payload, ['max_intensity', 'maxIntensity', 'calcintensity', 'intensity']) || '',
+                latitude: pickString(payload, ['latitude', 'lat']) || '', longitude: pickString(payload, ['longitude', 'lon', 'lng']) || '',
+                isFinal: pickBoolean(payload, ['is_final', 'isFinal', 'final']), isActive,
+            };
+        }
+
+        function buildEewSummary(eew) {
+            const titleParts = [];
+            if (eew.alertFlag) titleParts.push(eew.alertFlag);
+            if (eew.isFinal !== null) titleParts.push(eew.isFinal ? '最終報' : '速報');
+            const summaryParts = [];
+            if (eew.maxIntensity) summaryParts.push(`最大震度 ${eew.maxIntensity}`);
+            if (eew.magnitude) summaryParts.push(`M${eew.magnitude}`);
+            if (eew.depth) summaryParts.push(`深さ ${formatDepth(eew.depth)}`);
+            return {
+                title: titleParts.join(' - ') || 'EEW発表中',
+                region: eew.regionName ? `場所: ${eew.regionName}` : '',
+                summary: summaryParts.join(' / ') || (eew.message || '詳細情報を取得中'),
+            };
+        }
+
+        function buildEewDetails(eew) {
+            const lines = [];
+            if (eew.message) lines.push(`発表内容: ${eew.message}`);
+            if (eew.originTime) lines.push(`発生時刻: ${formatTimestamp(eew.originTime)}`);
+            if (eew.latitude && eew.longitude) lines.push(`震源: ${eew.latitude}, ${eew.longitude}`);
+            return lines.join('\n');
+        }
+
+        function formatDepth(value) {
+            const text = String(value || '').trim();
+            return /km$/i.test(text) ? text : `${text} km`;
+        }
+
+        function pickString(source, paths) {
+            for (const path of paths) { const v = readPath(source, path); if (v !== undefined && v !== null && String(v).trim() !== '') return String(v); }
+            return '';
+        }
+
+        function pickBoolean(source, paths) {
+            for (const path of paths) {
+                const v = readPath(source, path);
+                if (v === undefined || v === null) continue;
+                if (typeof v === 'boolean') return v;
+                if (typeof v === 'number') return v !== 0;
+                const text = String(v).toLowerCase();
+                if (['true', '1', 'yes', 'final'].includes(text)) return true;
+                if (['false', '0', 'no'].includes(text)) return false;
+            }
+            return null;
+        }
+
+        function readPath(source, path) {
+            if (!source || !path) return undefined;
+            return String(path).split('.').reduce((v, key) => (v === undefined || v === null) ? undefined : v[key], source);
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
     </script>
 </body>
 </html>

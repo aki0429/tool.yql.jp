@@ -1,0 +1,213 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #17202a;
+}
+
+button,
+select,
+input {
+    font: inherit;
+}
+
+#map {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+}
+
+.leaflet-container {
+    background: #fff;
+    cursor: default;
+}
+
+.leaflet-container.is-ctrl-pan {
+    cursor: grab;
+}
+
+.leaflet-container.is-ctrl-pan.leaflet-dragging {
+    cursor: grabbing;
+}
+
+.panel {
+    position: absolute;
+    z-index: 1000;
+    bottom: 10px;
+    left: 10px;
+    width: min(900px, calc(100vw - 20px));
+    min-height: 38px;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(21, 30, 39, 0.16);
+    border-radius: 6px;
+    box-shadow: 0 12px 30px rgba(20, 32, 45, 0.18);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.field select {
+    width: 178px;
+    box-sizing: border-box;
+    padding: 4px 7px;
+    border: 1px solid #b9c5cf;
+    border-radius: 5px;
+    background: #fff;
+}
+
+.source-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    flex: 1 1 420px;
+}
+
+.source-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    min-width: 0;
+    color: #17202a;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.source-item input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+}
+
+.source-item.is-unavailable {
+    color: #73808c;
+}
+
+.status {
+    display: none;
+    margin-top: 0;
+}
+
+.legend {
+    position: absolute;
+    z-index: 900;
+    right: 12px;
+    top: 12px;
+    width: min(260px, calc(100vw - 24px));
+    box-sizing: border-box;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(21, 30, 39, 0.16);
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(20, 32, 45, 0.16);
+}
+
+.legend__title {
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.legend__items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 8px;
+}
+
+.legend__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+.legend__swatch {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 50%;
+}
+
+.station-popup {
+    min-width: 230px;
+}
+
+.station-popup h2 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.station-popup__meta {
+    margin-bottom: 8px;
+    color: #617181;
+    font-size: 0.76rem;
+}
+
+.station-popup table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.station-popup th,
+.station-popup td {
+    padding: 4px 0;
+    border-top: 1px solid #e5ebf0;
+    text-align: left;
+}
+
+.station-popup td {
+    text-align: right;
+    font-weight: 800;
+}
+
+.amedas-ring {
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.86), 0 2px 5px rgba(0, 0, 0, 0.25);
+}
+
+.leaflet-tooltip {
+    border-radius: 4px;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+    .panel {
+        bottom: 6px;
+        left: 6px;
+        width: calc(100vw - 12px);
+        min-width: 0;
+        max-height: 72px;
+    }
+
+    .legend {
+        right: 8px;
+        top: 8px;
+        bottom: auto;
+        width: calc(100vw - 16px);
+    }
+}

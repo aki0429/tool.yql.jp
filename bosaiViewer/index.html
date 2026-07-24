@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07121c">
+  <title>DeckSpace | Multi Window Desk</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="DeckSpace">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <div>
+          <p class="brand-kicker">SITUATION WORKSPACE</p>
+          <h1>DeckSpace</h1>
+        </div>
+      </div>
+
+      <nav class="workspace-tabs" id="workspace-tabs" aria-label="ワークスペース"></nav>
+      <button class="icon-button add-workspace" type="button" data-action="new-workspace" aria-label="ワークスペースを追加">+</button>
+
+      <div class="top-actions">
+        <button class="action-button" type="button" data-action="add-site">+ サイト</button>
+        <button class="icon-button" type="button" data-action="split-row" title="選択中のペインを左右に分割" aria-label="左右に分割">
+          <span class="split-icon split-vertical"></span>
+        </button>
+        <button class="icon-button" type="button" data-action="split-column" title="選択中のペインを上下に分割" aria-label="上下に分割">
+          <span class="split-icon split-horizontal"></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="work-area">
+      <aside class="library panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">LIBRARY</p>
+            <h2>ウィンドウ</h2>
+          </div>
+          <button class="text-button" type="button" data-action="add-site">URL追加</button>
+        </div>
+
+        <label class="search-field">
+          <span class="sr-only">ウィンドウを検索</span>
+          <input id="library-filter" type="search" placeholder="ツールを検索..." autocomplete="off">
+        </label>
+        <div class="app-library" id="app-library"></div>
+
+        <section class="templates">
+          <div class="section-title">
+            <p class="eyebrow">LAYOUTS</p>
+            <h2>テンプレート</h2>
+          </div>
+          <button class="template-button" type="button" data-template="command">
+            <strong>Command Deck</strong>
+            <span>概要 / 時刻 / メモ / リンク</span>
+          </button>
+          <button class="template-button" type="button" data-template="monitor">
+            <strong>Bosai Monitor</strong>
+            <span>同一サイト内ツールを並列表示</span>
+          </button>
+          <button class="template-button" type="button" data-template="blank">
+            <strong>Blank Canvas</strong>
+            <span>空の一画面から開始</span>
+          </button>
+        </section>
+      </aside>
+
+      <main class="desktop" aria-label="デスクトップ">
+        <div class="desktop-toolbar">
+          <div>
+            <p class="eyebrow">ACTIVE DESK</p>
+            <h2 id="desktop-name">Command Deck</h2>
+          </div>
+          <div class="desktop-tools">
+            <span class="save-state" id="save-state">保存済み</span>
+            <button class="toolbar-button" type="button" data-action="split-row">左右分割</button>
+            <button class="toolbar-button" type="button" data-action="split-column">上下分割</button>
+            <button class="toolbar-button" type="button" data-action="open-floating">浮動窓</button>
+          </div>
+        </div>
+        <div class="desktop-surface" id="desktop-surface">
+          <div class="layout-root" id="layout-root"></div>
+          <div class="floating-layer" id="floating-layer" aria-label="浮動ウィンドウ"></div>
+        </div>
+      </main>
+
+      <aside class="inspector panel" aria-label="選択中のウィンドウ設定">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">INSPECTOR</p>
+            <h2>詳細設定</h2>
+          </div>
+        </div>
+        <div id="inspector-content"></div>
+        <section class="hint-card">
+          <p class="eyebrow">TIPS</p>
+          <p>タイトルバーを別のペインにドラッグすると内容を入れ替えられます。境界線をドラッグして表示幅を調整できます。</p>
+          <p>外部サイトは埋め込みを禁止している場合があります。その場合は窓内の「別タブ」から開いてください。</p>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <div class="live-pill"><span></span> LOCAL WORKSPACE</div>
+      <p>サイトやWebアプリを分割表示 / レイアウトはこのブラウザに自動保存</p>
+      <time id="status-clock"></time>
+    </footer>
+  </div>
+
+  <dialog class="dialog" id="site-dialog">
+    <form id="site-form">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">NEW WINDOW</p>
+          <h2 id="site-dialog-title">サイトを追加</h2>
+        </div>
+        <button class="icon-button" type="button" data-action="close-site-dialog" aria-label="閉じる">x</button>
+      </div>
+      <label>
+        表示名
+        <input name="title" type="text" maxlength="60" placeholder="例: 河川カメラ" required>
+      </label>
+      <label>
+        URL
+        <input name="url" type="text" placeholder="https://example.jp または ../rivercam/index.html" required>
+      </label>
+      <div class="form-row">
+        <label>
+          ウィンドウ外観
+          <select name="skin">
+            <option value="windows">Windows 11</option>
+            <option value="mac">macOS</option>
+            <option value="ubuntu">Ubuntu</option>
+            <option value="browser">Browser</option>
+          </select>
+        </label>
+        <label>
+          開き方
+          <select name="mode">
+            <option value="dock">選択ペインに配置</option>
+            <option value="float">浮動ウィンドウ</option>
+          </select>
+        </label>
+      </div>
+      <p class="form-error" id="site-form-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button class="toolbar-button" type="button" data-action="close-site-dialog">キャンセル</button>
+        <button class="action-button" type="submit">表示する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog compact-dialog" id="workspace-dialog">
+    <form id="workspace-form">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">WORKSPACE</p>
+          <h2>新しいデスク</h2>
+        </div>
+        <button class="icon-button" type="button" data-action="close-workspace-dialog" aria-label="閉じる">x</button>
+      </div>
+      <label>
+        デスク名
+        <input name="name" type="text" maxlength="32" placeholder="調査デスク" required>
+      </label>
+      <label>
+        初期レイアウト
+        <select name="template">
+          <option value="command">Command Deck</option>
+          <option value="monitor">Bosai Monitor</option>
+          <option value="blank">Blank Canvas</option>
+        </select>
+      </label>
+      <div class="dialog-actions">
+        <button class="toolbar-button" type="button" data-action="close-workspace-dialog">キャンセル</button>
+        <button class="action-button" type="submit">作成する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+</body>
+</html>

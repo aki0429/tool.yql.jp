@@ -1,58 +1,156 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>河川カメラ for MiyakoCam・アッキー</title>
-        <meta charset="UTF-8" lang="ja">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-        <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-        <div id="map"></div>
-        <div id="loader">
-            <div class="spinner"></div>
-            <p>データを読み込み中...</p>
-            <div id="progress-bar-container">
-                <div id="progress-bar"></div>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="河川カメラ、河川警報、水位観測所を地図で確認できます。">
+    <title>河川カメラ・河川防災マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+</head>
+<body>
+    <main id="map" aria-label="河川カメラ・河川警報・水位観測所の地図"></main>
+
+    <div id="loader" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>カメラデータを読み込み中...</p>
+        <div id="progress-bar-container" aria-hidden="true">
+            <div id="progress-bar"></div>
+        </div>
+        <p id="status-text">0 / 0 ファイル (0%)</p>
+    </div>
+
+    <div class="btns">
+        <button id="slideshow_start_btn" class="button" type="button">スライドショー開始</button>
+        <button id="slideshow_edit_btn" class="button" type="button">スライドショー編集</button>
+    </div>
+
+    <details id="river-info-panel" class="river-info-panel" open>
+        <summary>河川・水位情報</summary>
+        <div class="river-info-body">
+            <div class="river-status-line">
+                <span id="river-data-state" class="data-state is-loading" aria-hidden="true"></span>
+                <span id="river-data-status" role="status" aria-live="polite">河川情報を取得中...</span>
+                <button id="river_refresh_btn" class="refresh-button" type="button">更新</button>
             </div>
-            <p id="status-text">0 / 0 ファイル (0%)</p>
-        </div>
-
-
-        <div class="btns">
-            <button id="slideshow_start_btn" class="button">ｽﾗｲﾄﾞｼｮｰ開始</button>
-            <button id="slideshow_edit_btn" class="button">ｽﾗｲﾄﾞｼｮｰ編集</button>
-        </div>
-
-        <div id="div_slideshow_edit" class="modal">
-            <div class="modal-content">
-                <span id="close_div_slideshow_edit" class="modal-close">&times;</span>
-                <h2>スライドショーの編集</h2>
-                <p>リストからカメラを削除できます。</p>
-                <ul id="slideshow-edit-list">
-                    </ul>
-            </div>
-        </div>
-        
-        <div id="photoModal" class="modal">
-             <div class="modal-content">
-                <span id="close_photoModal" class="modal-close">&times;</span>
-                <div id="photoModal_photo">
-                    <div id="photoModal_photo_name">カメラ観測点名</div>
-                    <img src="https://placehold.jp/640x480.png" id="photoModal_photo_img">
-                    <label id="slideshow_select_label">
-                        <input type="checkbox" id="slideshow_select_checkbox"> ｽﾗｲﾄﾞｼｮｰに保存
-                    </label>
+            <p id="water-gauge-hint" class="water-gauge-hint">地図を拡大すると、表示範囲内の全水位計を表示します。</p>
+            <div class="legend-section" aria-label="水位計の色凡例">
+                <strong>水位計</strong>
+                <div class="legend-grid">
+                    <span><i style="--legend-color:#66ccff"></i>通常</span>
+                    <span><i style="--legend-color:#35a86b"></i>水防団待機</span>
+                    <span><i style="--legend-color:#f2e700"></i>氾濫注意</span>
+                    <span><i style="--legend-color:#ff2800"></i>避難判断</span>
+                    <span><i style="--legend-color:#aa00aa"></i>氾濫危険</span>
+                    <span><i style="--legend-color:#140014"></i>氾濫発生</span>
+                    <span><i style="--legend-color:#c8c8cb"></i>欠測</span>
+                    <span><i style="--legend-color:#ffffff"></i>基準未設定</span>
                 </div>
             </div>
+            <div class="legend-section" aria-label="河川警報の色凡例">
+                <strong>警報河川</strong>
+                <div class="legend-grid legend-lines">
+                    <span><i style="--legend-color:#f2e700"></i>氾濫注意</span>
+                    <span><i style="--legend-color:#ff2800"></i>氾濫警戒</span>
+                    <span><i style="--legend-color:#aa00aa"></i>氾濫危険</span>
+                    <span><i style="--legend-color:#140014"></i>氾濫発生</span>
+                    <span class="legend-dashed"><i style="--legend-color:#cbf266"></i>水防警報（破線）</span>
+                </div>
+            </div>
+            <p class="data-attribution">
+                出典：<a href="https://www.river.go.jp/kawabou/" target="_blank" rel="noopener noreferrer">国土交通省「川の防災情報」</a>を加工して作成
+            </p>
         </div>
+    </details>
+
+    <div id="div_slideshow_edit" class="modal" role="dialog" aria-modal="true" aria-labelledby="slideshow-edit-title">
+        <div class="modal-content">
+            <button id="close_div_slideshow_edit" class="modal-close" type="button" aria-label="閉じる">&times;</button>
+            <h2 id="slideshow-edit-title">スライドショーの編集</h2>
+            <p>リストからカメラを削除できます。</p>
+            <ul id="slideshow-edit-list"></ul>
+        </div>
+    </div>
+
+    <div id="photoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="photoModal_photo_name">
+        <div class="modal-content">
+            <button id="close_photoModal" class="modal-close" type="button" aria-label="閉じる">&times;</button>
+            <div id="photoModal_photo">
+                <div id="photoModal_photo_name">カメラ観測点名</div>
+                <div id="photo-comparison" class="photo-comparison is-current-only">
+                    <figure class="photo-comparison-item">
+                        <figcaption>
+                            <strong>現在</strong>
+                            <time id="photo-current-time"></time>
+                        </figcaption>
+                        <img src="https://placehold.jp/640x480.png" id="photoModal_photo_img" alt="現在の河川カメラ画像">
+                    </figure>
+                    <figure id="photo-past-item" class="photo-comparison-item" hidden>
+                        <figcaption>
+                            <strong>過去（平常時の参考）</strong>
+                            <time id="photo-past-time"></time>
+                        </figcaption>
+                        <img src="https://placehold.jp/640x480.png" id="photoModal_past_img" alt="過去の河川カメラ画像">
+                    </figure>
+                </div>
+                <p id="photo-comparison-note" class="photo-comparison-note" hidden>過去画像は平常時を保証するものではありません。現在の状況と見比べるための参考画像です。</p>
+                <label id="slideshow_select_label">
+                    <input type="checkbox" id="slideshow_select_checkbox"> スライドショーに保存
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="waterLevelModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="water-level-title">
+        <div class="modal-content water-level-modal-content">
+            <button id="close_waterLevelModal" class="modal-close" type="button" aria-label="閉じる">&times;</button>
+            <div id="water-level-loading" class="water-level-loading" role="status">
+                <div class="small-spinner" aria-hidden="true"></div>
+                <span>水位データを読み込み中...</span>
+            </div>
+            <div id="water-level-content" hidden>
+                <div class="water-level-heading">
+                    <div>
+                        <p id="water-level-river" class="water-level-river"></p>
+                        <h2 id="water-level-title">水位観測所</h2>
+                    </div>
+                    <span id="water-level-badge" class="water-level-badge">通常</span>
+                </div>
+                <div class="current-water-level">
+                    <span id="water-level-current">--</span><small> m</small>
+                </div>
+                <p id="water-level-observed-at" class="observed-at"></p>
+                <dl class="station-meta">
+                    <div><dt>所在地</dt><dd id="water-level-address">--</dd></div>
+                    <div><dt>管理</dt><dd id="water-level-office">--</dd></div>
+                </dl>
+
+                <div class="chart-toolbar">
+                    <strong>水位の推移</strong>
+                    <div class="range-tabs" role="tablist" aria-label="グラフの表示期間">
+                        <button class="range-tab is-active" type="button" role="tab" aria-selected="true" data-hours="24">1日</button>
+                        <button class="range-tab" type="button" role="tab" aria-selected="false" data-hours="72">3日</button>
+                    </div>
+                </div>
+                <div id="water-chart" class="water-chart" role="img" aria-label="水位の時系列グラフ"></div>
+                <p id="water-chart-summary" class="chart-summary" aria-live="polite"></p>
+                <div id="water-threshold-list" class="threshold-list" aria-label="基準水位"></div>
+                <p class="water-level-note">観測データは速報値です。避難判断には自治体などの最新情報も確認してください。</p>
+            </div>
+            <div id="water-level-error" class="water-level-error" hidden>
+                <p>水位データを取得できませんでした。</p>
+                <button id="water-level-retry" class="button" type="button">再試行</button>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
-    </body>
+</body>
 </html>

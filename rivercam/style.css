@@ -1,7 +1,10 @@
 body {
     font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
     margin: 0;
+    overflow: hidden;
+    color: #182230;
 }
+button { font: inherit; }
 #map {
     height: 100vh;
     width: 100vw;
@@ -67,6 +70,10 @@ body {
     font-weight: bold;
     cursor: pointer;
     line-height: 1;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    z-index: 2;
 }
 .modal-close:hover,
 .modal-close:focus {
@@ -114,13 +121,58 @@ body {
     margin-bottom: 10px;
     overflow-wrap: break-word;
 }
-#photoModal_photo_img {
-    /* 画像サイズを親コンテナとビューポートに合わせて調整 */
+.photo-comparison {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+.photo-comparison.is-current-only {
+    grid-template-columns: minmax(0, 1fr);
+}
+.photo-comparison-item {
+    min-width: 0;
+    margin: 0;
+}
+.photo-comparison-item figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+    margin-bottom: 6px;
+    text-align: left;
+}
+.photo-comparison-item time {
+    color: #c9d4df;
+    font-size: 0.78rem;
+}
+#photoModal_photo_img,
+#photoModal_past_img {
+    display: block;
+    width: 100%;
     max-width: 100%;
-    max-height: calc(90vh - 120px); /* 親の高さからテキスト等の分を引く */
+    max-height: calc(90vh - 190px);
+    aspect-ratio: 4 / 3;
     object-fit: contain;
     background-color: #111;
     border-radius: 4px;
+}
+.photo-comparison-note {
+    margin: 8px 0 0;
+    color: #c9d4df;
+    font-size: 0.78rem;
+    text-align: left;
+}
+@media (max-width: 720px) {
+    .photo-comparison {
+        grid-template-columns: minmax(0, 1fr);
+        overflow-y: auto;
+        max-height: calc(90vh - 170px);
+    }
+    #photoModal_photo_img,
+    #photoModal_past_img {
+        max-height: none;
+    }
 }
 #slideshow_select_label {
     display: block;
@@ -130,38 +182,48 @@ body {
 
 /* --- ローディング画面のスタイル --- */
 #loader {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(255, 255, 255, 0.85);
-    z-index: 30000;
-    display: flex;
-    justify-content: center;
+    position: absolute;
+    z-index: 1100;
+    top: 10px;
+    left: 50%;
+    display: grid;
+    grid-template-columns: auto minmax(180px, 320px);
+    gap: 3px 10px;
     align-items: center;
-    flex-direction: column;
+    width: min(420px, calc(100vw - 220px));
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid rgba(25, 59, 80, 0.18);
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 5px 18px rgba(18, 48, 68, 0.22);
+    backdrop-filter: blur(7px);
+    transform: translateX(-50%);
+    pointer-events: none;
 }
 .spinner {
-    border: 8px solid #f3f3f3;
+    grid-row: 1 / span 3;
+    border: 4px solid #e4edf2;
     border-radius: 50%;
-    border-top: 8px solid #3498db;
-    width: 60px;
-    height: 60px;
+    border-top: 4px solid #3498db;
+    width: 25px;
+    height: 25px;
     animation: spin 1s linear infinite;
 }
 #loader p {
-    margin-top: 16px;
-    font-size: 1.1rem;
+    margin: 0;
+    font-size: 0.72rem;
     color: #333;
 }
 #progress-bar-container {
-    width: 80%;
-    max-width: 420px;
+    width: 100%;
     background-color: #e0e0e0;
     border-radius: 5px;
-    margin: 12px 0;
+    margin: 2px 0;
 }
 #progress-bar {
     width: 0%;
-    height: 18px;
+    height: 7px;
     background-color: #3498db;
     border-radius: 5px;
     transition: width 0.2s ease-out;
@@ -171,3 +233,511 @@ body {
     100% { transform: rotate(360deg); }
 }
 /* ▲▲▲ スタイル更新ここまで ▲▲▲ */
+
+/* 河川情報パネル */
+.river-info-panel {
+    position: absolute;
+    z-index: 1000;
+    left: 10px;
+    bottom: 20px;
+    width: min(390px, calc(100vw - 20px));
+    overflow: hidden;
+    border: 1px solid rgba(15, 42, 64, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 8px 28px rgba(12, 35, 53, 0.22);
+    backdrop-filter: blur(8px);
+}
+.river-info-panel summary {
+    padding: 10px 13px;
+    cursor: pointer;
+    color: white;
+    background: #123a56;
+    font-weight: 700;
+    user-select: none;
+}
+.river-info-body {
+    max-height: min(54vh, 480px);
+    padding: 11px 13px 10px;
+    overflow-y: auto;
+}
+.river-status-line {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.78rem;
+}
+.data-state {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #35a86b;
+    box-shadow: 0 0 0 3px rgba(53, 168, 107, 0.15);
+}
+.data-state.is-loading {
+    background: #1976d2;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+    animation: state-pulse 1.25s ease-in-out infinite;
+}
+.data-state.is-error {
+    background: #d32f2f;
+    box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
+}
+@keyframes state-pulse {
+    50% { opacity: 0.35; }
+}
+.refresh-button {
+    border: 1px solid #b7c5cf;
+    border-radius: 6px;
+    padding: 3px 8px;
+    color: #173b55;
+    background: white;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.74rem;
+}
+.refresh-button:hover,
+.refresh-button:focus-visible {
+    background: #edf6fb;
+}
+.refresh-button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+.water-gauge-hint {
+    margin: 8px 0 3px;
+    color: #566774;
+    font-size: 0.73rem;
+}
+.legend-section {
+    margin-top: 9px;
+    padding-top: 8px;
+    border-top: 1px solid #e1e8ed;
+    font-size: 0.74rem;
+}
+.legend-section strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.76rem;
+}
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 9px;
+}
+.legend-grid span {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    white-space: nowrap;
+}
+.legend-grid i {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.22);
+    border-radius: 50%;
+    background: var(--legend-color);
+}
+.legend-lines i {
+    width: 19px;
+    height: 5px;
+    border: 0;
+    border-radius: 3px;
+}
+.legend-lines .legend-dashed i {
+    height: 4px;
+    background: repeating-linear-gradient(
+        to right,
+        var(--legend-color) 0 7px,
+        transparent 7px 11px
+    );
+}
+.data-attribution {
+    margin: 9px 0 0;
+    color: #61727e;
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+.data-attribution a { color: #0b6095; }
+
+/* 水位計マーカー */
+.camera-div-icon,
+.water-gauge-div-icon,
+.water-cluster-icon {
+    border: 0 !important;
+    background: transparent !important;
+}
+.camera-marker {
+    position: relative;
+    width: 36px;
+    height: 28px;
+    box-sizing: border-box;
+    border: 3px solid #fff;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #0b74de 0%, #074f9d 100%);
+    box-shadow:
+        0 2px 7px rgba(0, 0, 0, 0.42),
+        0 0 0 2px rgba(11, 116, 222, 0.28);
+}
+.camera-marker::before {
+    position: absolute;
+    left: 7px;
+    top: -7px;
+    width: 14px;
+    height: 7px;
+    border: 3px solid #fff;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    background: #074f9d;
+    content: '';
+}
+.camera-marker::after {
+    position: absolute;
+    right: -6px;
+    top: -6px;
+    width: 12px;
+    height: 12px;
+    box-sizing: border-box;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #21c6c8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    content: '';
+    opacity: 0;
+}
+.camera-marker.has-gauge::after {
+    opacity: 1;
+}
+.camera-marker-lens {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    box-sizing: border-box;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #081d35;
+    transform: translate(-50%, -50%);
+}
+.water-gauge-marker {
+    position: relative;
+    width: 34px;
+    height: 42px;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.48));
+}
+.water-gauge-pin {
+    position: absolute;
+    left: 3px;
+    top: 1px;
+    width: 27px;
+    height: 27px;
+    box-sizing: border-box;
+    border: 3px solid white;
+    border-radius: 50% 50% 50% 0;
+    background: var(--pin-color, #66ccff);
+    transform: rotate(-45deg);
+    box-shadow: 0 0 0 2px rgba(16, 47, 69, 0.18);
+}
+.water-gauge-pin::after {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    content: '';
+}
+.water-gauge-marker.is-dark .water-gauge-pin::after {
+    background: white;
+}
+.water-gauge-marker.has-camera::after {
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    width: 13px;
+    height: 13px;
+    box-sizing: border-box;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    background: #0b74de;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.38);
+    content: '';
+}
+.water-cluster {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    box-sizing: border-box;
+    border: 3px solid rgba(255, 255, 255, 0.92);
+    border-radius: 50%;
+    color: var(--cluster-text, #10202b);
+    background: var(--cluster-color, #66ccff);
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.35);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.river-warning-popup {
+    min-width: 210px;
+    color: #182230;
+    line-height: 1.45;
+}
+.river-warning-popup strong { display: block; margin-bottom: 3px; }
+.river-warning-popup .warning-level { font-weight: 700; }
+.river-warning-popup p { margin: 5px 0 0; }
+.river-warning-popup time { color: #61727e; font-size: 0.76rem; }
+.same-location-popup {
+    min-width: 230px;
+    color: #182230;
+}
+.same-location-popup strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #102f45;
+    font-size: 0.95rem;
+}
+.same-location-popup p {
+    margin: 0 0 8px;
+    color: #405463;
+    font-size: 0.82rem;
+}
+.same-location-names {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    background: #eef6fa;
+    font-size: 0.76rem;
+}
+.same-location-names span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.same-location-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.same-location-button {
+    min-height: 36px;
+    border: 0;
+    border-radius: 7px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+}
+.same-location-button:focus-visible {
+    outline: 3px solid rgba(25, 118, 210, 0.35);
+    outline-offset: 2px;
+}
+.same-location-button.camera-choice {
+    background: #0b74de;
+}
+.same-location-button.gauge-choice {
+    background: #087f8c;
+}
+
+/* 水位詳細モーダル */
+.water-level-modal-content {
+    width: min(820px, calc(100vw - 32px));
+    max-height: min(92vh, 820px);
+    box-sizing: border-box;
+    overflow-y: auto;
+    border: 0;
+    background: #f9fbfc;
+    color: #182230;
+}
+.water-level-modal-content .modal-close { color: #4e5d68; }
+.water-level-modal-content .modal-close:hover,
+.water-level-modal-content .modal-close:focus { color: #111; }
+.water-level-loading {
+    display: flex;
+    min-height: 240px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #405463;
+}
+.small-spinner {
+    width: 26px;
+    height: 26px;
+    border: 4px solid #dce7ed;
+    border-top-color: #1976d2;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+.water-level-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding-right: 28px;
+}
+.water-level-heading h2 {
+    margin: 2px 0 0;
+    color: #102f45;
+    font-size: clamp(1.25rem, 3vw, 1.65rem);
+}
+.water-level-river {
+    margin: 0;
+    color: #647580;
+    font-size: 0.78rem;
+}
+.water-level-badge {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 5px 10px;
+    color: #10202b;
+    background: #66ccff;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.current-water-level {
+    margin-top: 13px;
+    color: #102f45;
+    font-size: clamp(2.3rem, 8vw, 3.4rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+.current-water-level small {
+    font-size: 1.05rem;
+    letter-spacing: 0;
+}
+.observed-at {
+    margin: 7px 0 13px;
+    color: #657681;
+    font-size: 0.78rem;
+}
+.station-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 20px;
+    margin: 0 0 18px;
+    padding: 11px 13px;
+    border-radius: 8px;
+    background: #eef4f7;
+}
+.station-meta div { min-width: 0; }
+.station-meta dt { color: #667783; font-size: 0.7rem; }
+.station-meta dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 0.82rem; }
+.chart-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.range-tabs {
+    display: flex;
+    padding: 3px;
+    border-radius: 8px;
+    background: #e4edf2;
+}
+.range-tab {
+    min-width: 56px;
+    border: 0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: #405463;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 700;
+}
+.range-tab.is-active {
+    color: white;
+    background: #176b9c;
+    box-shadow: 0 1px 4px rgba(17, 62, 88, 0.22);
+}
+.water-chart {
+    position: relative;
+    width: 100%;
+    min-height: 290px;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid #d9e3e8;
+    border-radius: 9px;
+    background: white;
+}
+.water-chart svg { display: block; width: 100%; height: 290px; }
+.chart-grid-line { stroke: #e4ebef; stroke-width: 1; }
+.chart-axis-label { fill: #687985; font-size: 11px; }
+.chart-threshold-line { stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.9; }
+.chart-water-area { fill: url(#water-area-gradient); }
+.chart-water-line { fill: none; stroke: #0878b8; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart-water-point { fill: white; stroke: #0878b8; stroke-width: 1.5; }
+.chart-summary {
+    min-height: 1.2em;
+    margin: 7px 0;
+    color: #5c6d78;
+    font-size: 0.72rem;
+}
+.threshold-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+    font-size: 0.7rem;
+}
+.threshold-list span { display: flex; align-items: center; }
+.threshold-list i {
+    width: 18px;
+    height: 3px;
+    margin-right: 5px;
+    border-radius: 2px;
+    background: var(--threshold-color);
+}
+.water-level-note {
+    margin: 14px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid #dce5ea;
+    color: #657681;
+    font-size: 0.7rem;
+    line-height: 1.5;
+}
+.water-level-error {
+    min-height: 220px;
+    text-align: center;
+    align-content: center;
+}
+.water-level-error .button { background: #176b9c; }
+
+@media (max-width: 640px) {
+    .btns {
+        top: auto;
+        bottom: 10px;
+        left: 10px;
+        display: flex;
+    }
+    .button { padding: 5px 8px; font-size: 0.76rem; }
+    .river-info-panel { bottom: 52px; }
+    #loader {
+        top: 58px;
+        width: calc(100vw - 20px);
+        grid-template-columns: auto 1fr;
+    }
+    .river-info-body { max-height: 45vh; }
+    .water-level-modal-content {
+        width: calc(100vw - 18px);
+        max-width: none;
+        max-height: calc(100vh - 18px);
+        padding: 17px 13px;
+    }
+    .station-meta { grid-template-columns: 1fr; }
+    .water-chart { min-height: 250px; }
+    .water-chart svg { height: 250px; }
+    .leaflet-control-layers-expanded { max-width: 74vw; font-size: 0.78rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner,
+    .small-spinner,
+    .data-state.is-loading { animation: none; }
+}

@@ -1,0 +1,48 @@
+{
+  "type": "FeatureCollection",
+  "name": "demo-sites-not-from-flightaware",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [139.6917, 35.6895]
+      },
+      "properties": {
+        "name": "デモ受信局 - 東京",
+        "type": "デモ / PiAware",
+        "frequency": "1090 MHz",
+        "location": "東京都",
+        "description": "表示確認用データです。FlightAware のデータではありません。"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [135.5023, 34.6937]
+      },
+      "properties": {
+        "name": "デモ受信局 - 大阪",
+        "type": "デモ / FlightFeeder",
+        "frequency": "1090 MHz",
+        "location": "大阪府",
+        "description": "表示確認用データです。FlightAware のデータではありません。"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [141.3545, 43.0618]
+      },
+      "properties": {
+        "name": "デモ受信局 - 札幌",
+        "type": "デモ / Other",
+        "frequency": "978 MHz",
+        "location": "北海道",
+        "description": "表示確認用データです。FlightAware のデータではありません。"
+      }
+    }
+  ]
+}
