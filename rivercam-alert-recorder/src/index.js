@@ -141,7 +141,7 @@ async function historyExport(req,res){let temporaryDirectory;try{
   for(const [index,frame] of frames.entries())await fs.writeFile(path.join(temporaryDirectory,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
   const output=path.join(temporaryDirectory,`export.${plan.format}`),input=path.join(temporaryDirectory,'%06d.jpg');
   const args=plan.format==='mp4'
-    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p','-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',output]
+    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p','-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
     :['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`fps=${plan.fps},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output];
   await new Promise((resolve,reject)=>{const ffmpeg=spawn('ffmpeg',args,{stdio:['ignore','ignore','pipe']});let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)))});
   const stat=await fs.stat(output),type=plan.format==='mp4'?'video/mp4':'image/gif';res.writeHead(200,{'content-type':type,'content-length':stat.size,'content-disposition':`attachment; filename="${plan.cameraId}_${plan.fps}fps.${plan.format}"`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
@@ -175,8 +175,8 @@ async function exportVideo(req,res){
     lines.push(lines[lines.length-2]);
     await fs.writeFile(concatFile,lines.join('\n'));
     await new Promise((resolve,reject)=>{
-      // CRF 20は閲覧用AVIFからの再圧縮による劣化を抑えつつ、実用的な容量にする。
-      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
+      // CRF 26で画質とファイル容量のバランスを取る。
+      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
       let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)));
     });
     const stat=await fs.stat(output),downloadName=encodeURIComponent(`${city}_${camera}_${fps}fps.mp4`);
