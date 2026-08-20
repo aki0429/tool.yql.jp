@@ -1,151 +1,86 @@
-let data;
-let selectedFiles = [];
-let selectedCamera = null;
-
+let cameras = [];
+let checkedFrames = [];
 const $ = id => document.getElementById(id);
-const enc = value => value.split('/').map(encodeURIComponent).join('/');
 
 async function init() {
-  const [index, status] = await Promise.all([
-    fetch('/archive/index.json').then(response => response.json()),
-    fetch('/archive/status.json').then(response => response.json()).catch(() => ({}))
-  ]);
-  data = index;
-  $('status').textContent = `索引更新 ${new Date(index.generatedAt).toLocaleString('ja-JP')} / 警報地域 ${status.activeWarnings?.length || 0} / 対象カメラ ${status.targetCameras || 0}`;
-  for (const city of index.municipalities) $('city').add(new Option(city.name, city.name));
-  await loadHistoryCameras();
-  setHistoryDefaults();
+  cameras = await fetch('/api/cameras').then(response => response.json());
+  const prefectures = [...new Set(cameras.map(camera => camera.prefecture).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+  for (const name of prefectures) $('prefecture').add(new Option(name, name));
+  setDefaultTimes();
   bind();
-  render();
+  await loadWarningLog();
+  $('status').textContent = `${cameras.length.toLocaleString()}台 / 過去画像は最大30日前まで / 警報ログ30日保存`;
 }
 
 function bind() {
-  for (const id of ['city', 'camera', 'date']) {
-    $(id).addEventListener('change', () => {
-      if (id === 'city') updateCameras();
-      render();
-    });
-  }
-  $('latest').onclick = () => { $('date').value = ''; render(); };
-  $('close').onclick = () => $('viewer').close();
-  $('slider').oninput = event => showFrame(Number(event.target.value));
-  $('export-video').onclick = exportVideo;
+  $('prefecture').onchange = updateMunicipalities;
+  $('municipality').onchange = renderCameras;
   $('history-check').onclick = checkHistory;
   $('history-export').onclick = exportHistory;
+  $('history-slider').oninput = event => showHistoryFrame(Number(event.target.value));
+  $('zip-export').onclick = exportMunicipalityZip;
   for (const id of ['history-camera', 'history-start', 'history-end', 'history-interval']) {
-    $(id).addEventListener('change', () => { $('history-export').disabled = true; $('history-status').textContent = '再確認してください'; });
+    $(id).addEventListener('change', resetHistoryCheck);
   }
-}
-
-function updateCameras() {
-  const city = data.municipalities.find(item => item.name === $('city').value);
-  $('camera').innerHTML = '<option value="">全カメラ</option>';
-  for (const camera of city?.cameras || []) $('camera').add(new Option(camera.name || camera.directory, camera.directory));
-}
-
-function filteredFiles(camera) {
-  const date = $('date').value;
-  return date ? camera.files.filter(file => file.startsWith(date)) : camera.files;
-}
-
-function render() {
-  const root = $('content');
-  root.innerHTML = '';
-  for (const city of data.municipalities) {
-    if ($('city').value && city.name !== $('city').value) continue;
-    const cameras = city.cameras.filter(camera =>
-      (!$('camera').value || camera.directory === $('camera').value) && filteredFiles(camera).length
-    );
-    if (!cameras.length) continue;
-
-    const section = document.createElement('section');
-    section.className = 'city';
-    section.innerHTML = `<h2>${city.name}</h2><div class="grid"></div>`;
-    for (const camera of cameras) {
-      const files = filteredFiles(camera);
-      const button = document.createElement('button');
-      button.className = 'card';
-      button.innerHTML = `<img loading="lazy" src="/archive/${enc(`${city.name}/${camera.directory}/${files[0]}`)}"><div><strong>${camera.name || camera.directory}</strong><small>${files.length}枚 / ${files[0]}</small></div>`;
-      button.onclick = () => openViewer(city, camera, files);
-      section.querySelector('.grid').append(button);
-    }
-    root.append(section);
-  }
-}
-
-function openViewer(city, camera, files) {
-  selectedFiles = files.map(file => ({
-    url: `/archive/${enc(`${city.name}/${camera.directory}/${file}`)}`,
-    name: file
-  })).reverse();
-  selectedCamera = { city: city.name, directory: camera.directory, name: camera.name || camera.directory };
-  $('title').textContent = `${city.name} / ${selectedCamera.name}`;
-  $('slider').max = selectedFiles.length - 1;
-  $('slider').value = selectedFiles.length - 1;
-  $('export-status').textContent = '';
-  showFrame(selectedFiles.length - 1);
-  $('viewer').showModal();
-}
-
-function showFrame(index) {
-  const frame = selectedFiles[index];
-  if (!frame) return;
-  $('image').src = frame.url;
-  $('time').textContent = `${index + 1} / ${selectedFiles.length}　${frame.name}`;
-}
-
-async function exportVideo() {
-  if (!selectedCamera || !selectedFiles.length) return;
-  const button = $('export-video');
-  const status = $('export-status');
-  button.disabled = true;
-  status.textContent = '動画を作成しています…';
-  try {
-    const response = await fetch('/api/export', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        city: selectedCamera.city,
-        camera: selectedCamera.directory,
-        files: selectedFiles.map(frame => frame.name),
-        fps: Number($('export-fps').value)
-      })
-    });
-    if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${selectedCamera.city}_${selectedCamera.name}_${$('export-fps').value}fps.mp4`.replace(/[\\/:*?"<>|]/g, '_');
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    status.textContent = '書き出しが完了しました';
-  } catch (error) {
-    status.textContent = `失敗: ${error.message}`;
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function loadHistoryCameras() {
-  const response = await fetch('/api/cameras');
-  if (!response.ok) throw new Error('カメラ一覧を取得できませんでした');
-  const cameras = await response.json();
-  const select = $('history-camera');
-  for (const camera of cameras) select.add(new Option(`${camera.municipality} / ${camera.name} (${camera.id})`, camera.id));
 }
 
 function localDateTimeValue(date) {
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-function setHistoryDefaults() {
+function setDefaultTimes() {
   const end = new Date();
   end.setMinutes(Math.floor(end.getMinutes() / 10) * 10, 0, 0);
-  const start = new Date(end.getTime() - 6 * 3600000);
-  $('history-start').value = localDateTimeValue(start);
   $('history-end').value = localDateTimeValue(end);
+  $('history-start').value = localDateTimeValue(new Date(end.getTime() - 6 * 3600000));
+  $('zip-time').value = localDateTimeValue(end);
+  for (const input of [$('history-start'), $('history-end'), $('zip-time')]) {
+    input.min = localDateTimeValue(new Date(end.getTime() - 30 * 86400000));
+    input.max = localDateTimeValue(end);
+  }
+}
+
+function updateMunicipalities() {
+  const prefecture = $('prefecture').value;
+  const names = [...new Set(cameras.filter(camera => camera.prefecture === prefecture).map(camera => camera.municipality))].sort((a, b) => a.localeCompare(b, 'ja'));
+  $('municipality').innerHTML = '<option value="">選択してください</option>';
+  for (const name of names) $('municipality').add(new Option(name, name));
+  $('municipality').disabled = !prefecture;
+  $('camera-list').innerHTML = '';
+  $('zip-export').disabled = true;
+}
+
+function selectedMunicipalityCameras() {
+  return cameras.filter(camera => camera.prefecture === $('prefecture').value && camera.municipality === $('municipality').value);
+}
+
+function renderCameras() {
+  const list = selectedMunicipalityCameras(), root = $('camera-list');
+  root.innerHTML = '';
+  $('zip-export').disabled = !list.length;
+  for (const camera of list) {
+    const button = document.createElement('button');
+    button.className = 'card';
+    button.innerHTML = `<img loading="lazy" src="/api/current/${camera.id}" alt="${camera.name}"><div><strong>${camera.name}</strong><small>ID: ${camera.id}</small></div>`;
+    button.onclick = () => selectCamera(camera);
+    root.append(button);
+  }
+}
+
+function selectCamera(camera) {
+  const select = $('history-camera');
+  select.innerHTML = '';
+  select.add(new Option(`${camera.prefecture} / ${camera.municipality} / ${camera.name}`, camera.id));
+  select.value = camera.id;
+  resetHistoryCheck();
+  document.querySelectorAll('.history-export')[1].scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetHistoryCheck() {
+  $('history-export').disabled = true;
+  $('history-preview').hidden = true;
+  $('history-status').textContent = '過去画像を再確認してください';
+  checkedFrames = [];
 }
 
 function historyRequest() {
@@ -168,30 +103,61 @@ async function checkHistory() {
     const response = await fetch('/api/history/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(historyRequest()) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
-    status.textContent = `${result.requested}時点中 ${result.available}枚を確認（${result.first || '-'} ～ ${result.last || '-'}）`;
-    $('history-export').disabled = result.available === 0;
+    checkedFrames = result.frames || [];
+    status.textContent = `${result.requested}時点中 ${result.available}枚を確認`;
+    $('history-export').disabled = !result.available;
+    $('history-preview').hidden = !result.available;
+    if (result.available) {
+      $('history-slider').max = result.available - 1;
+      $('history-slider').value = result.available - 1;
+      showHistoryFrame(result.available - 1);
+    }
   } catch (error) { status.textContent = `確認失敗: ${error.message}`; }
   finally { $('history-check').disabled = false; }
 }
 
+function showHistoryFrame(index) {
+  const frame = checkedFrames[index];
+  if (!frame) return;
+  $('history-image').src = `/api/history/image?cameraId=${encodeURIComponent($('history-camera').value)}&stamp=${frame}`;
+  $('history-time').textContent = `${index + 1} / ${checkedFrames.length}　${frame.slice(0, 4)}-${frame.slice(4, 6)}-${frame.slice(6, 8)} ${frame.slice(8, 10)}:${frame.slice(10, 12)}`;
+}
+
+async function downloadResponse(response, fallbackName) {
+  if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+  const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
+  link.href = url;
+  const match = response.headers.get('content-disposition')?.match(/filename="?([^";]+)"?/i);
+  link.download = match?.[1] || fallbackName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 async function exportHistory() {
-  const status = $('history-status');
-  const button = $('history-export');
-  button.disabled = true;
-  status.textContent = '画像を取得して書き出しています…';
+  const button = $('history-export'), status = $('history-status'), request = historyRequest();
+  button.disabled = true; status.textContent = '書き出しています…';
   try {
-    const request = historyRequest();
     const response = await fetch('/api/history/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) });
-    if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
-    const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
-    link.href = url;
-    const option = $('history-camera').selectedOptions[0];
-    link.download = `${option?.textContent || request.cameraId}_${request.fps}fps.${request.format}`.replace(/[\\/:*?"<>|]/g, '_');
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    status.textContent = '書き出しが完了しました（元画像はサーバーに保存していません）';
+    await downloadResponse(response, `${request.cameraId}.${request.format}`);
+    status.textContent = '書き出しが完了しました';
   } catch (error) { status.textContent = `書き出し失敗: ${error.message}`; }
   finally { button.disabled = false; }
+}
+
+async function exportMunicipalityZip() {
+  const button = $('zip-export'), status = $('zip-status');
+  button.disabled = true; status.textContent = '全カメラを取得しています…';
+  try {
+    const response = await fetch('/api/municipality/zip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prefecture: $('prefecture').value, municipality: $('municipality').value, time: $('zip-time').value }) });
+    await downloadResponse(response, `${$('prefecture').value}_${$('municipality').value}.zip`);
+    status.textContent = 'ZIP保存が完了しました';
+  } catch (error) { status.textContent = `ZIP失敗: ${error.message}`; }
+  finally { button.disabled = false; }
+}
+
+async function loadWarningLog() {
+  const logs = await fetch('/api/warnings').then(response => response.json()).catch(() => []);
+  $('warning-log').innerHTML = logs.length ? logs.slice().reverse().map(log => `<details><summary>${new Date(log.at).toLocaleString('ja-JP')}　${log.active.length}地域</summary><p>${log.active.map(item => `${item.name}: ${item.label}`).join('<br>') || '対象なし'}</p></details>`).join('') : '記録はまだありません';
 }
 
 init().catch(error => $('status').textContent = `エラー: ${error.message}`);

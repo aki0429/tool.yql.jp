@@ -7,9 +7,8 @@ import os from 'node:os';
 import { loadConfig, ROOT, safeName, fetchJson, mapLimit, warningDetails, writeJsonAtomic } from './core.js';
 import { buildIndex } from './build-index.js';
 
-const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public');
-let cameras=[], areaMap={}, active=new Map(), running=false, lastPoll=null;
-const lastCapture = new Map();
+const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public'), warningLogFile=path.join(main,'warning-log.json');
+let cameras=[], areaMap={}, active=new Map(), running=false, lastPoll=null, warningLog=[];
 function normalizeMunicipalityName(value){
   return String(value||'').normalize('NFKC').replace(/[ 　]/g,'').replace(/^.+郡(?=.+[町村]$)/,'').replace(/^.+振興局(?=.+[市町村区]$)/,'');
 }
@@ -77,85 +76,28 @@ function currentWarnings(payload){
   }
   return result;
 }
-async function encodeAvifAtCrf(input,output,crf,maxWidth){
-  await new Promise((resolve,reject)=>{
-    const scale=`scale='min(iw,${maxWidth})':-2:flags=lanczos`;
-    const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-i','pipe:0','-map_metadata','-1','-frames:v','1','-vf',scale,'-c:v','libaom-av1','-still-picture','1','-usage','allintra','-crf',String(crf),'-b:v','0','-cpu-used','6','-row-mt','1','-pix_fmt','yuv420p','-f','avif',output],{stdio:['pipe','ignore','pipe']});
-    let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)));ffmpeg.stdin.end(input);
-  });
-  return (await fs.stat(output)).size;
+async function appendWarningLog(warnings){
+  const now=new Date(),cutoff=now.getTime()-30*86400000;
+  warningLog=warningLog.filter(entry=>new Date(entry.at).getTime()>=cutoff);
+  const activeWarnings=[...warnings.values()].filter(item=>item.level>=config.minimumStartLevel).map(({code,name,level,label,rainLevel,landslideLevel,reportDatetime,publishingOffice})=>({code,name,level,label,rainLevel,landslideLevel,reportDatetime,publishingOffice}));
+  const signature=JSON.stringify(activeWarnings.map(item=>[item.code,item.level,item.label]).sort());
+  if(signature!==warningLog.at(-1)?.signature)warningLog.push({at:now.toISOString(),signature,active:activeWarnings});
+  await writeJsonAtomic(warningLogFile,warningLog);
 }
-async function encodeAvif(input,output){
-  const preferredCrf=Math.max(20,Math.min(60,Number(config.avifCrf)||46));
-  const maximumCrf=Math.max(preferredCrf,Math.min(63,Number(config.avifMaximumCrf)||52));
-  const maxWidth=Math.max(320,Number(config.maxImageWidth)||960);
-  const crfs=[preferredCrf,Math.min(preferredCrf+4,maximumCrf),maximumCrf].filter((value,index,array)=>array.indexOf(value)===index);
-  const widths=[maxWidth,800,640,512,480].filter((width,index,array)=>width<=maxWidth&&array.indexOf(width)===index).sort((a,b)=>b-a);
-  let crf=crfs[0],usedMaxWidth=widths[0],outputBytes=Infinity,bestBytes=Infinity,bestFile=`${output}.best`;
-  outer: for(const width of widths){
-    for(const candidate of crfs){
-      const bytes=await encodeAvifAtCrf(input,output,candidate,width);
-      if(bytes<bestBytes){bestBytes=bytes;crf=candidate;usedMaxWidth=width;await fs.copyFile(output,bestFile)}
-      if(bytes<=input.length){outputBytes=bytes;crf=candidate;usedMaxWidth=width;break outer}
-    }
-  }
-  if(!Number.isFinite(outputBytes)){outputBytes=bestBytes;await fs.copyFile(bestFile,output)}
-  await fs.unlink(bestFile).catch(()=>{});
-  const probe=spawn('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=codec_name,width,height:format_tags=major_brand','-of','json',output],{stdio:['ignore','pipe','pipe']});
-  let stdout='',stderr='';probe.stdout.on('data',chunk=>stdout+=chunk);probe.stderr.on('data',chunk=>stderr+=chunk);
-  const [code]=await once(probe,'close');
-  let result,stream;try{result=JSON.parse(stdout);stream=result.streams?.[0]}catch{}
-  if(code!==0||stream?.codec_name!=='av1'||result?.format?.tags?.major_brand!=='avif'||!stream.width||!stream.height)throw new Error(`AVIF validation failed: ${stderr.trim()||stdout}`);
-  return {codec:stream.codec_name,width:stream.width,height:stream.height,crf,usedMaxWidth,inputBytes:input.length,outputBytes};
-}
-async function captureCamera(camera,warning){
-  const city=safeName(camera.municipality),cam=safeName(camera.name),dir=path.join(main,city,cam);await fs.mkdir(dir,{recursive:true});
-  const response=await fetch(camera.imageUrl,{signal:AbortSignal.timeout(20000),headers:{'user-agent':'rivercam-alert-recorder/1.0'}});if(!response.ok)throw Error(`image HTTP ${response.status}`);
-  const contentType=response.headers.get('content-type')||'';if(!contentType.startsWith('image/'))throw Error(`not image: ${contentType}`);
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-'),input=Buffer.from(await response.arrayBuffer());
-  if((config.imageFormat||'avif').toLowerCase()==='avif'){
-    const output=path.join(dir,`${stamp}_L${warning.level}.avif`),temporary=`${output}.tmp.avif`;
-    try{
-      const encoded=await encodeAvif(input,temporary);await fs.rename(temporary,output);
-      console.log(`avif ${camera.id}: ${encoded.width}x${encoded.height} crf${encoded.crf}, ${encoded.inputBytes} -> ${encoded.outputBytes} bytes (${Math.round(encoded.outputBytes/encoded.inputBytes*100)}%)`);
-    }catch(error){await fs.unlink(temporary).catch(()=>{});throw error}
-  }else{
-    const ext=contentType.includes('png')?'png':contentType.includes('webp')?'webp':'jpg';await fs.writeFile(path.join(dir,`${stamp}_L${warning.level}.${ext}`),input);
-  }
-  await writeJsonAtomic(path.join(dir,'camera.json'),{id:camera.id,name:camera.name,municipality:camera.municipality,municipalityCode:camera.municipalityCode,lat:camera.lat,lng:camera.lng,imageUrl:camera.imageUrl,imageFormat:config.imageFormat||'avif',lastWarning:warning});
-}
-async function pruneExpiredImages(){
-  if(!config.retentionDays || config.retentionDays<=0)return 0;
-  const cutoff=Date.now()-config.retentionDays*86400000;let removed=0;
-  for(const city of await fs.readdir(main,{withFileTypes:true}).catch(()=>[])){
-    if(!city.isDirectory())continue;const cityPath=path.join(main,city.name);
-    for(const camera of await fs.readdir(cityPath,{withFileTypes:true}).catch(()=>[])){
-      if(!camera.isDirectory())continue;const cameraPath=path.join(cityPath,camera.name);
-      for(const file of await fs.readdir(cameraPath,{withFileTypes:true}).catch(()=>[])){
-        if(!file.isFile()||!/^\d{4}-\d{2}-\d{2}T.*\.(jpe?g|png|webp|avif)$/i.test(file.name))continue;
-        const stat=await fs.stat(path.join(cameraPath,file.name));
-        if(stat.mtimeMs<cutoff){await fs.unlink(path.join(cameraPath,file.name));removed++}
-      }
-    }
-  }
-  if(removed)console.log(`retention: removed ${removed} images older than ${config.retentionDays} days`);
+async function deleteStoredImages(){
+  let removed=0;
+  for(const city of await fs.readdir(main,{withFileTypes:true}).catch(()=>[])){if(!city.isDirectory())continue;const cityPath=path.join(main,city.name);for(const camera of await fs.readdir(cityPath,{withFileTypes:true}).catch(()=>[])){if(!camera.isDirectory())continue;const cameraPath=path.join(cityPath,camera.name);for(const file of await fs.readdir(cameraPath,{withFileTypes:true}).catch(()=>[])){if(file.isFile()&&/\.(jpe?g|png|webp|avif)$/i.test(file.name)){await fs.unlink(path.join(cameraPath,file.name));removed++}}}}
+  if(removed)console.log(`removed ${removed} obsolete stored images`);
   return removed;
 }
 async function poll(){if(running)return;running=true;try{
   const warnings=currentWarnings(await fetchJson('https://www.jma.go.jp/bosai/warning/data/r8/map.json'));lastPoll=new Date().toISOString();
   for(const [code,w] of warnings){if(w.level>=config.minimumStartLevel)active.set(code,w);else if(w.level<config.stopBelowLevel)active.delete(code);}
   for(const code of [...active.keys()])if(!warnings.has(code))active.delete(code);
-  const cameraWarning=camera=>(camera.municipalityCodes?.length?camera.municipalityCodes:[camera.municipalityCode]).map(code=>active.get(code)).filter(Boolean).sort((a,b)=>b.level-a.level)[0];
-  const targets=cameras.filter(camera=>cameraWarning(camera));
-  const captureDue=targets.filter(camera=>Date.now()-(lastCapture.get(camera.id)||0)>=config.captureIntervalSeconds*1000);
-  await mapLimit(captureDue,config.captureConcurrency,async camera=>{
-    await captureCamera(camera,cameraWarning(camera));
-    lastCapture.set(camera.id,Date.now());
-  });
-  await pruneExpiredImages();
+  await appendWarningLog(warnings);
   const allWarningLevels=[...warnings.values()].filter(w=>w.level>0);
-  await writeJsonAtomic(path.join(main,'status.json'),{updatedAt:lastPoll,dataSource:'https://www.jma.go.jp/bosai/warning/data/r8/map.json',warningLevels:allWarningLevels,activeWarnings:[...active.values()],targetCameras:targets.length,captureIntervalSeconds:config.captureIntervalSeconds,retentionDays:config.retentionDays});await buildIndex();
-  console.log(`${lastPoll}: rain/landslide=${allWarningLevels.length}, recording=${active.size}, targets=${targets.length}, captured=${captureDue.length}`);
+  await writeJsonAtomic(path.join(main,'status.json'),{updatedAt:lastPoll,dataSource:'https://www.jma.go.jp/bosai/warning/data/r8/map.json',warningLevels:allWarningLevels,activeWarnings:[...active.values()],warningLogRetentionDays:30,storedImages:false});
+  console.log(`${lastPoll}: rain/landslide=${allWarningLevels.length}, active=${active.size}, warningLog=${warningLog.length}`);
 }catch(e){console.error('poll failed',e)}finally{running=false}}
 function historyDate(value){const date=new Date(value);if(!value||Number.isNaN(date.getTime()))throw new Error('日時が不正です');return date}
 function historyStamp(date){const parts=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);const get=type=>parts.find(part=>part.type===type)?.value;return `${get('year')}${get('month')}${get('day')}${get('hour')}${get('minute')}`}
@@ -163,9 +105,10 @@ function historyPlan(body){
   const cameraId=String(body.cameraId||'');if(!/^\d{6,15}$/.test(cameraId)||!cameras.some(camera=>camera.id===cameraId))throw new Error('カメラを選択してください');
   const start=historyDate(body.start),end=historyDate(body.end),interval=Number(body.intervalMinutes);
   if(![5,10,30,60].includes(interval)||end<start)throw new Error('期間または間隔が不正です');
-  if(end-start>7*86400000)throw new Error('一度に指定できる期間は7日までです');
+  if(start.getTime()<Date.now()-30*86400000)throw new Error('過去画像は30日前まで指定できます');
+  if(end-start>30*86400000)throw new Error('一度に指定できる期間は30日までです');
   const dates=[];for(let time=start.getTime();time<=end.getTime();time+=interval*60000)dates.push(new Date(time));
-  if(dates.length>2016)throw new Error('指定枚数が多すぎます');
+  if(dates.length>8640)throw new Error('指定枚数が多すぎます');
   return {cameraId,dates,fps:Number(body.fps),format:String(body.format||'mp4')};
 }
 async function fetchHistoryFrame(cameraId,date){
@@ -179,7 +122,18 @@ async function availableHistory(plan,includeBuffers=false){
   if(!includeBuffers)for(const item of available)delete item.buffer;
   return available;
 }
-async function historyCheck(req,res){try{const plan=historyPlan(await readRequestJson(req)),available=await availableHistory(plan);const value={requested:plan.dates.length,available:available.length,first:available[0]?.stamp||null,last:available.at(-1)?.stamp||null};const body=JSON.stringify(value);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-store'}).end(body)}catch(error){const body=JSON.stringify({error:error.message});res.writeHead(400,{'content-type':'application/json; charset=utf-8'}).end(body)}}
+async function historyCheck(req,res){try{const plan=historyPlan(await readRequestJson(req)),available=await availableHistory(plan);const value={requested:plan.dates.length,available:available.length,first:available[0]?.stamp||null,last:available.at(-1)?.stamp||null,frames:available.map(item=>item.stamp)};const body=JSON.stringify(value);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-store'}).end(body)}catch(error){const body=JSON.stringify({error:error.message});res.writeHead(400,{'content-type':'application/json; charset=utf-8'}).end(body)}}
+async function currentImage(res,cameraId){try{const camera=cameras.find(item=>item.id===cameraId);if(!camera)throw new Error('Camera not found');const response=await fetch(camera.imageUrl,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error(`Image HTTP ${response.status}`);const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':response.headers.get('content-type')||'image/jpeg','content-length':body.length,'cache-control':'no-cache'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
+async function historyImage(res,url){try{const cameraId=url.searchParams.get('cameraId')||'',stamp=url.searchParams.get('stamp')||'';if(!/^\d{6,15}$/.test(cameraId)||!/^\d{12}$/.test(stamp)||!cameras.some(item=>item.id===cameraId))throw new Error('Invalid request');const response=await fetch(`https://cam.river.go.jp/cam/history/${stamp}/${cameraId}.jpg`,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error('Image not found');const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':'image/jpeg','content-length':body.length,'cache-control':'private, max-age=300'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
+async function municipalityZip(req,res){let temporaryDirectory;try{
+  const body=await readRequestJson(req),prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),date=historyDate(body.time),selected=cameras.filter(item=>item.prefecture===prefecture&&item.municipality===municipality);
+  if(!selected.length)throw new Error('市区町村のカメラがありません');if(date.getTime()<Date.now()-30*86400000||date>Date.now()+3600000)throw new Error('時刻は過去30日以内で指定してください');
+  temporaryDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'rivercam-zip-'));const stamp=historyStamp(date),downloaded=[];
+  await mapLimit(selected,4,async camera=>{const frame=await fetchHistoryFrame(camera.id,date);if(frame){const file=`${safeName(camera.name)}_${camera.id}_${stamp}.jpg`;await fs.writeFile(path.join(temporaryDirectory,file),frame.buffer);downloaded.push(file)}});
+  if(!downloaded.length)throw new Error('指定時刻に取得できる画像がありません');
+  const output=path.join(os.tmpdir(),`rivercam-${process.pid}-${Date.now()}.zip`);temporaryDirectory=path.resolve(temporaryDirectory);await new Promise((resolve,reject)=>{const script='import os,sys,zipfile\nout,folder=sys.argv[1:3]\nwith zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:\n for name in os.listdir(folder): z.write(os.path.join(folder,name),name)\n';const zip=spawn('python3',['-c',script,output,temporaryDirectory]);let error='';zip.stderr.on('data',chunk=>error+=chunk);zip.on('error',reject);zip.on('close',code=>code===0?resolve():reject(new Error(`zip ${code}: ${error.trim()}`)))});
+  const stat=await fs.stat(output),name=encodeURIComponent(`${prefecture}_${municipality}_${stamp}.zip`);res.writeHead(200,{'content-type':'application/zip','content-length':stat.size,'content-disposition':`attachment; filename*=UTF-8''${name}`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');await fs.unlink(output).catch(()=>{});
+}catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`ZIP failed: ${error.message}`)}finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
 async function historyExport(req,res){let temporaryDirectory;try{
   const plan=historyPlan(await readRequestJson(req));if(!Number.isInteger(plan.fps)||plan.fps<1||plan.fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(plan.format))throw new Error('形式が不正です');
   const frames=await availableHistory(plan,true);if(!frames.length)throw new Error('指定期間の過去画像がありません');
@@ -232,8 +186,13 @@ async function exportVideo(req,res){
   finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}
 }
 function serve(req,res){
-  if(req.method==='GET'&&req.url==='/api/cameras'){const list=cameras.map(({id,name,municipality})=>({id,name,municipality})).sort((a,b)=>`${a.municipality}${a.name}`.localeCompare(`${b.municipality}${b.name}`,'ja'));const body=JSON.stringify(list);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
-  if(req.method==='POST'&&req.url==='/api/history/check'){historyCheck(req,res);return}
+  const url=new URL(req.url,'http://localhost');
+  if(req.method==='GET'&&url.pathname==='/api/cameras'){const list=cameras.map(({id,name,municipality,prefecture})=>({id,name,municipality,prefecture})).sort((a,b)=>`${a.prefecture}${a.municipality}${a.name}`.localeCompare(`${b.prefecture}${b.municipality}${b.name}`,'ja'));const body=JSON.stringify(list);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
+  if(req.method==='GET'&&url.pathname==='/api/warnings'){const body=JSON.stringify(warningLog.map(({signature,...entry})=>entry));res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
+  if(req.method==='GET'&&url.pathname.startsWith('/api/current/')){currentImage(res,url.pathname.split('/').pop());return}
+  if(req.method==='GET'&&url.pathname==='/api/history/image'){historyImage(res,url);return}
+  if(req.method==='POST'&&url.pathname==='/api/municipality/zip'){municipalityZip(req,res);return}
+  if(req.method==='POST'&&url.pathname==='/api/history/check'){historyCheck(req,res);return}
   if(req.method==='POST'&&req.url==='/api/history/export'){historyExport(req,res);return}
   if(req.method==='POST'&&req.url==='/api/export'){exportVideo(req,res);return}
   let requested;
@@ -246,6 +205,8 @@ function serve(req,res){
   fs.readFile(file).then(body=>{const ext=path.extname(file).toLowerCase();const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.avif':'image/avif'};res.writeHead(200,{'content-type':types[ext]||'application/octet-stream','content-length':body.length,'cache-control':archive?'public, max-age=300':'no-cache','x-content-type-options':'nosniff'});res.end(body)}).catch(()=>res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end('Not found'))
 }
 await fs.mkdir(main,{recursive:true});
+try{warningLog=JSON.parse(await fs.readFile(warningLogFile,'utf8'))}catch{warningLog=[]}
+await deleteStoredImages();
 http.createServer(serve).listen(config.port,'0.0.0.0',()=>console.log(`viewer: http://0.0.0.0:${config.port}`));
 refreshMaster().then(async()=>{
   await poll();

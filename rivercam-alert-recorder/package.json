@@ -1,0 +1,11 @@
+{
+  "name": "rivercam-alert-recorder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "build:index": "node src/build-index.js"
+  },
+  "engines": { "node": ">=20" }
+}

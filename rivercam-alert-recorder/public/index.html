@@ -3,56 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RiverCam Alert Archive</title>
+  <title>RiverCam History Viewer</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
 <body>
-  <header>
-    <p>RIVERCAM / ALERT ARCHIVE</p>
-    <h1>大雨時 河川カメラ記録</h1>
-    <div id="status">読み込み中</div>
-  </header>
-  <main>
-    <div class="controls">
-      <select id="city"><option value="">全市区町村</option></select>
-      <select id="camera"><option value="">全カメラ</option></select>
-      <input id="date" type="date">
-      <button id="latest">最新へ</button>
+<header>
+  <p>RIVERCAM / HISTORY & WARNING LOG</p>
+  <h1>河川カメラ履歴</h1>
+  <div id="status">読み込み中</div>
+</header>
+<main>
+  <section class="history-export">
+    <h2>カメラを探す</h2>
+    <p>都道府県、市区町村の順に選択すると、現在のカメラ画像を表示します。</p>
+    <div class="search-grid">
+      <label>都道府県<select id="prefecture"><option value="">選択してください</option></select></label>
+      <label>市区町村<select id="municipality" disabled><option value="">選択してください</option></select></label>
     </div>
-    <section class="history-export">
-      <h2>国交省カメラの過去画像から書き出す</h2>
-      <p>サーバーには画像を保存せず、国交省のヒストリー画像を取得して動画を作成します。</p>
-      <div class="history-grid">
-        <label>カメラ<select id="history-camera"><option value="">カメラを選択</option></select></label>
-        <label>開始日時<input id="history-start" type="datetime-local" step="300"></label>
-        <label>終了日時<input id="history-end" type="datetime-local" step="300"></label>
-        <label>取得間隔<select id="history-interval"><option value="5">5分ごと</option><option value="10" selected>10分ごと</option><option value="30">30分ごと</option><option value="60">1時間ごと</option></select></label>
-        <label>再生速度<select id="history-fps"><option value="1">1枚/秒</option><option value="2">2枚/秒</option><option value="3">3枚/秒</option><option value="4">4枚/秒</option><option value="5" selected>5枚/秒</option><option value="6">6枚/秒</option><option value="7">7枚/秒</option><option value="8">8枚/秒</option><option value="9">9枚/秒</option><option value="10">10枚/秒</option></select></label>
-        <label>形式<select id="history-format"><option value="mp4">MP4</option><option value="gif">GIF</option></select></label>
-      </div>
-      <div class="history-actions"><button id="history-check">過去画像を確認</button><button id="history-export" disabled>書き出す</button><span id="history-status"></span></div>
-    </section>
-    <div id="content"></div>
-  </main>
-  <dialog id="viewer">
-    <button id="close">閉じる</button>
-    <h2 id="title"></h2>
-    <input id="slider" type="range" min="0" value="0">
-    <div id="time"></div>
-    <img id="image" alt="河川カメラ記録">
-    <div class="export-controls">
-      <label for="export-fps">書き出し速度</label>
-      <select id="export-fps">
-        <option value="1">1枚/秒</option><option value="2">2枚/秒</option>
-        <option value="3">3枚/秒</option><option value="4">4枚/秒</option>
-        <option value="5">5枚/秒</option><option value="6">6枚/秒</option>
-        <option value="7">7枚/秒</option><option value="8">8枚/秒</option>
-        <option value="9">9枚/秒</option><option value="10">10枚/秒</option>
-      </select>
-      <button id="export-video">MP4を書き出す</button>
-      <span id="export-status"></span>
+    <div id="camera-list" class="grid"></div>
+  </section>
+
+  <section class="history-export">
+    <h2>過去画像を見る・書き出す</h2>
+    <p>カメラと開始・終了時刻を必ず指定してください。国交省の過去画像はサーバーに恒久保存しません。</p>
+    <div class="history-grid">
+      <label>カメラ<select id="history-camera"><option value="">上の一覧から選択</option></select></label>
+      <label>開始日時<input id="history-start" type="datetime-local" step="300"></label>
+      <label>終了日時<input id="history-end" type="datetime-local" step="300"></label>
+      <label>取得間隔<select id="history-interval"><option value="5">5分ごと</option><option value="10" selected>10分ごと</option><option value="30">30分ごと</option><option value="60">1時間ごと</option></select></label>
+      <label>再生速度<select id="history-fps"><option value="1">1枚/秒</option><option value="2">2枚/秒</option><option value="3">3枚/秒</option><option value="4">4枚/秒</option><option value="5" selected>5枚/秒</option><option value="6">6枚/秒</option><option value="7">7枚/秒</option><option value="8">8枚/秒</option><option value="9">9枚/秒</option><option value="10">10枚/秒</option></select></label>
+      <label>形式<select id="history-format"><option value="mp4">MP4</option><option value="gif">GIF</option></select></label>
     </div>
-  </dialog>
+    <div class="history-actions">
+      <button id="history-check">過去画像を確認・表示</button>
+      <button id="history-export" disabled>動画を書き出す</button>
+      <span id="history-status"></span>
+    </div>
+    <div id="history-preview" class="history-preview" hidden>
+      <input id="history-slider" type="range" min="0" value="0">
+      <div id="history-time"></div>
+      <img id="history-image" alt="過去の河川カメラ画像">
+    </div>
+  </section>
+
+  <section class="history-export">
+    <h2>市区町村内の全カメラをZIP保存</h2>
+    <p>選択中の市区町村にある全河川カメラについて、指定時刻の画像をまとめてダウンロードします。</p>
+    <div class="search-grid">
+      <label>画像の時刻<input id="zip-time" type="datetime-local" step="300"></label>
+      <div class="history-actions"><button id="zip-export" disabled>全カメラをZIP保存</button><span id="zip-status"></span></div>
+    </div>
+  </section>
+
+  <section class="history-export">
+    <h2>警報地域ログ（30日間）</h2>
+    <div id="warning-log">読み込み中</div>
+  </section>
+</main>
 </body>
 </html>
