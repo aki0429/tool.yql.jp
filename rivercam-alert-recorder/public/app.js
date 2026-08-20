@@ -6,7 +6,7 @@ async function init() {
   cameras = await fetch('/api/cameras').then(response => response.json());
   const northToSouth = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
   const available = new Set(cameras.map(camera => camera.prefecture).filter(Boolean));
-  const prefectures = northToSouth.filter(name => available.has(name));
+  const prefectures = northToSouth.filter(name => name === '北海道' ? [...available].some(value => value.startsWith('北海道')) : available.has(name));
   for (const name of prefectures) $('prefecture').add(new Option(name, name));
   setDefaultTimes();
   bind();
@@ -44,7 +44,7 @@ function setDefaultTimes() {
 
 function updateMunicipalities() {
   const prefecture = $('prefecture').value;
-  const names = [...new Set(cameras.filter(camera => camera.prefecture === prefecture).map(camera => camera.municipality))].sort((a, b) => a.localeCompare(b, 'ja'));
+  const names = [...new Set(cameras.filter(camera => prefecture === '北海道' ? camera.prefecture.startsWith('北海道') : camera.prefecture === prefecture).map(camera => camera.municipality))].sort((a, b) => a.localeCompare(b, 'ja'));
   $('municipality').innerHTML = '<option value="">選択してください</option>';
   for (const name of names) $('municipality').add(new Option(name, name));
   $('municipality').disabled = !prefecture;
@@ -53,7 +53,8 @@ function updateMunicipalities() {
 }
 
 function selectedMunicipalityCameras() {
-  return cameras.filter(camera => camera.prefecture === $('prefecture').value && camera.municipality === $('municipality').value);
+  const prefecture = $('prefecture').value;
+  return cameras.filter(camera => (prefecture === '北海道' ? camera.prefecture.startsWith('北海道') : camera.prefecture === prefecture) && camera.municipality === $('municipality').value);
 }
 
 function renderCameras() {
@@ -157,9 +158,52 @@ async function exportMunicipalityZip() {
   finally { button.disabled = false; }
 }
 
+function warningRegionCameras(region) {
+  const normalized = value => String(value || '').normalize('NFKC').replace(/[ 　]/g, '').replace(/^.+郡(?=.+[町村]$)/, '');
+  const target = normalized(region.name);
+  const prefix = String(region.code || '').slice(0, 2);
+  return cameras.filter(camera => {
+    const municipality = normalized(camera.municipality);
+    const codeMatches = !prefix || String(camera.municipalityCode || '').startsWith(prefix) || String(camera.prefectureCode || '').padStart(2, '0').startsWith(prefix);
+    return codeMatches && (municipality === target || municipality.startsWith(target) || target.startsWith(municipality));
+  });
+}
+
+function showWarningRegionCameras(region) {
+  const matches = warningRegionCameras(region), root = $('warning-camera-list');
+  $('warning-camera-result').hidden = false;
+  $('warning-camera-title').textContent = `${region.name} / ${region.label}（${matches.length}台）`;
+  root.innerHTML = '';
+  if (!matches.length) { root.textContent = '対応する河川カメラはありません。'; return; }
+  for (const camera of matches) {
+    const button = document.createElement('button');
+    button.className = 'card';
+    button.innerHTML = `<img loading="lazy" src="/api/current/${camera.id}" alt="${camera.name}"><div><strong>${camera.name}</strong><small>${camera.prefecture} ${camera.municipality} / ID: ${camera.id}</small></div>`;
+    button.onclick = () => selectCamera(camera);
+    root.append(button);
+  }
+  $('warning-camera-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function loadWarningLog() {
-  const logs = await fetch('/api/warnings').then(response => response.json()).catch(() => []);
-  $('warning-log').innerHTML = logs.length ? logs.slice().reverse().map(log => `<details><summary>${new Date(log.at).toLocaleString('ja-JP')}　${log.active.length}地域</summary><p>${log.active.map(item => `${item.name}: ${item.label}`).join('<br>') || '対象なし'}</p></details>`).join('') : '記録はまだありません';
+  const logs = await fetch('/api/warnings').then(response => response.json()).catch(() => []), root = $('warning-log');
+  if (!logs.length) { root.textContent = '記録はまだありません'; return; }
+  root.innerHTML = '';
+  for (const log of logs.slice().reverse()) {
+    const details = document.createElement('details'), summary = document.createElement('summary'), regions = document.createElement('div');
+    summary.textContent = `${new Date(log.at).toLocaleString('ja-JP')}　${log.active.length}地域`;
+    regions.className = 'warning-regions';
+    if (!log.active.length) regions.textContent = '対象なし';
+    for (const item of log.active) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'warning-region';
+      button.textContent = `${item.name}: ${item.label}`;
+      button.onclick = () => showWarningRegionCameras(item);
+      regions.append(button);
+    }
+    details.append(summary, regions); root.append(details);
+  }
 }
 
 init().catch(error => $('status').textContent = `エラー: ${error.message}`);
