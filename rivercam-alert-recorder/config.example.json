@@ -1,0 +1,16 @@
+{
+  "port": 8787,
+  "mainDirectory": "./Main",
+  "rivercamBaseUrl": "https://tool.ikunocam.net/rivercam",
+  "warningPollSeconds": 60,
+  "captureIntervalSeconds": 600,
+  "captureConcurrency": 6,
+  "imageFormat": "avif",
+  "avifCrf": 46,
+  "avifMaximumCrf": 52,
+  "maxImageWidth": 960,
+  "minimumStartLevel": 3,
+  "stopBelowLevel": 3,
+  "cameraIndexRefreshHours": 24,
+  "retentionDays": 7
+}
