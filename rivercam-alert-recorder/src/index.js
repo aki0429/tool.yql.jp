@@ -7,7 +7,8 @@ import os from 'node:os';
 import { loadConfig, ROOT, safeName, fetchJson, mapLimit, warningDetails, writeJsonAtomic } from './core.js';
 import { buildIndex } from './build-index.js';
 
-const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public'), warningLogFile=path.join(main,'warning-log.json');
+const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public'), warningLogFile=path.join(main,'warning-log.json'), attributionFont=path.join(ROOT,'assets','NotoSansCJKjp-Regular.otf');
+const attributionFilter=`drawtext=fontfile=${attributionFont}:text='提供\\：国土交通省':fontcolor=white:fontsize=h/28:x=w-tw-18:y=h-th-16:box=1:boxcolor=black@0.62:boxborderw=9`;
 let cameras=[], areaMap={}, active=new Map(), running=false, lastPoll=null, warningLog=[];
 function normalizeMunicipalityName(value){
   return String(value||'').normalize('NFKC').replace(/[ 　]/g,'').replace(/^.+郡(?=.+[町村]$)/,'').replace(/^.+振興局(?=.+[市町村区]$)/,'');
@@ -141,8 +142,8 @@ async function historyExport(req,res){let temporaryDirectory;try{
   for(const [index,frame] of frames.entries())await fs.writeFile(path.join(temporaryDirectory,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
   const output=path.join(temporaryDirectory,`export.${plan.format}`),input=path.join(temporaryDirectory,'%06d.jpg');
   const args=plan.format==='mp4'
-    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p','-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
-    :['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`fps=${plan.fps},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output];
+    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
+    :['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`fps=${plan.fps},${attributionFilter},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output];
   await new Promise((resolve,reject)=>{const ffmpeg=spawn('ffmpeg',args,{stdio:['ignore','ignore','pipe']});let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)))});
   const stat=await fs.stat(output),type=plan.format==='mp4'?'video/mp4':'image/gif';res.writeHead(200,{'content-type':type,'content-length':stat.size,'content-disposition':`attachment; filename="${plan.cameraId}_${plan.fps}fps.${plan.format}"`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
 }catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`Export failed: ${error.message}`)}finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
@@ -176,7 +177,7 @@ async function exportVideo(req,res){
     await fs.writeFile(concatFile,lines.join('\n'));
     await new Promise((resolve,reject)=>{
       // CRF 26で画質とファイル容量のバランスを取る。
-      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
+      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
       let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)));
     });
     const stat=await fs.stat(output),downloadName=encodeURIComponent(`${city}_${camera}_${fps}fps.mp4`);
