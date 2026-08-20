@@ -27,6 +27,14 @@
   <section class="history-export">
     <h2>過去画像を見る・書き出す</h2>
     <p>カメラと開始・終了時刻を必ず指定してください。国交省の過去画像はサーバーに恒久保存しません。</p>
+    <div class="period-picker" aria-label="表示期間">
+      <span>表示期間</span>
+      <button type="button" data-hours="1">過去1時間</button>
+      <button type="button" data-hours="3">過去3時間</button>
+      <button type="button" data-hours="6" class="active">過去6時間</button>
+      <button type="button" data-hours="12">過去12時間</button>
+      <button type="button" data-hours="24">過去24時間</button>
+    </div>
     <div class="history-grid">
       <label>カメラ<select id="history-camera"><option value="">上の一覧から選択</option></select></label>
       <label>開始日時<input id="history-start" type="datetime-local" step="300"></label>

@@ -21,6 +21,7 @@ function bind() {
   $('history-export').onclick = exportHistory;
   $('history-slider').oninput = event => showHistoryFrame(Number(event.target.value));
   $('zip-export').onclick = exportMunicipalityZip;
+  for (const button of document.querySelectorAll('.period-picker button')) button.onclick = () => setHistoryPeriod(Number(button.dataset.hours), button);
   for (const id of ['history-camera', 'history-start', 'history-end', 'history-interval']) {
     $(id).addEventListener('change', resetHistoryCheck);
   }
@@ -40,6 +41,16 @@ function setDefaultTimes() {
     input.min = localDateTimeValue(new Date(end.getTime() - 30 * 86400000));
     input.max = localDateTimeValue(end);
   }
+}
+
+function setHistoryPeriod(hours, selectedButton) {
+  const end = new Date();
+  end.setMinutes(Math.floor(end.getMinutes() / 5) * 5, 0, 0);
+  $('history-end').value = localDateTimeValue(end);
+  $('history-start').value = localDateTimeValue(new Date(end.getTime() - hours * 3600000));
+  for (const button of document.querySelectorAll('.period-picker button')) button.classList.toggle('active', button === selectedButton);
+  resetHistoryCheck();
+  if ($('history-camera').value) checkHistory();
 }
 
 function updateMunicipalities() {
@@ -77,6 +88,7 @@ function selectCamera(camera) {
   select.value = camera.id;
   resetHistoryCheck();
   document.querySelectorAll('.history-export')[1].scrollIntoView({ behavior: 'smooth' });
+  checkHistory();
 }
 
 function resetHistoryCheck() {
