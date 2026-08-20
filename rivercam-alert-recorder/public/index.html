@@ -20,6 +20,19 @@
       <input id="date" type="date">
       <button id="latest">最新へ</button>
     </div>
+    <section class="history-export">
+      <h2>国交省カメラの過去画像から書き出す</h2>
+      <p>サーバーには画像を保存せず、国交省のヒストリー画像を取得して動画を作成します。</p>
+      <div class="history-grid">
+        <label>カメラ<select id="history-camera"><option value="">カメラを選択</option></select></label>
+        <label>開始日時<input id="history-start" type="datetime-local" step="300"></label>
+        <label>終了日時<input id="history-end" type="datetime-local" step="300"></label>
+        <label>取得間隔<select id="history-interval"><option value="5">5分ごと</option><option value="10" selected>10分ごと</option><option value="30">30分ごと</option><option value="60">1時間ごと</option></select></label>
+        <label>再生速度<select id="history-fps"><option value="1">1枚/秒</option><option value="2">2枚/秒</option><option value="3">3枚/秒</option><option value="4">4枚/秒</option><option value="5" selected>5枚/秒</option><option value="6">6枚/秒</option><option value="7">7枚/秒</option><option value="8">8枚/秒</option><option value="9">9枚/秒</option><option value="10">10枚/秒</option></select></label>
+        <label>形式<select id="history-format"><option value="mp4">MP4</option><option value="gif">GIF</option></select></label>
+      </div>
+      <div class="history-actions"><button id="history-check">過去画像を確認</button><button id="history-export" disabled>書き出す</button><span id="history-status"></span></div>
+    </section>
     <div id="content"></div>
   </main>
   <dialog id="viewer">

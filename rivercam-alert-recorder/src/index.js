@@ -157,6 +157,41 @@ async function poll(){if(running)return;running=true;try{
   await writeJsonAtomic(path.join(main,'status.json'),{updatedAt:lastPoll,dataSource:'https://www.jma.go.jp/bosai/warning/data/r8/map.json',warningLevels:allWarningLevels,activeWarnings:[...active.values()],targetCameras:targets.length,captureIntervalSeconds:config.captureIntervalSeconds,retentionDays:config.retentionDays});await buildIndex();
   console.log(`${lastPoll}: rain/landslide=${allWarningLevels.length}, recording=${active.size}, targets=${targets.length}, captured=${captureDue.length}`);
 }catch(e){console.error('poll failed',e)}finally{running=false}}
+function historyDate(value){const date=new Date(value);if(!value||Number.isNaN(date.getTime()))throw new Error('日時が不正です');return date}
+function historyStamp(date){const parts=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);const get=type=>parts.find(part=>part.type===type)?.value;return `${get('year')}${get('month')}${get('day')}${get('hour')}${get('minute')}`}
+function historyPlan(body){
+  const cameraId=String(body.cameraId||'');if(!/^\d{6,15}$/.test(cameraId)||!cameras.some(camera=>camera.id===cameraId))throw new Error('カメラを選択してください');
+  const start=historyDate(body.start),end=historyDate(body.end),interval=Number(body.intervalMinutes);
+  if(![5,10,30,60].includes(interval)||end<start)throw new Error('期間または間隔が不正です');
+  if(end-start>7*86400000)throw new Error('一度に指定できる期間は7日までです');
+  const dates=[];for(let time=start.getTime();time<=end.getTime();time+=interval*60000)dates.push(new Date(time));
+  if(dates.length>2016)throw new Error('指定枚数が多すぎます');
+  return {cameraId,dates,fps:Number(body.fps),format:String(body.format||'mp4')};
+}
+async function fetchHistoryFrame(cameraId,date){
+  const stamp=historyStamp(date),url=`https://cam.river.go.jp/cam/history/${stamp}/${cameraId}.jpg`;
+  const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam history exporter)','referer':'https://www.river.go.jp/'}});
+  if(!response.ok||!(response.headers.get('content-type')||'').startsWith('image/'))return null;
+  return {stamp,url,buffer:Buffer.from(await response.arrayBuffer())};
+}
+async function availableHistory(plan,includeBuffers=false){
+  const results=await mapLimit(plan.dates,4,date=>fetchHistoryFrame(plan.cameraId,date)),available=results.filter(item=>item&&!item.error);
+  if(!includeBuffers)for(const item of available)delete item.buffer;
+  return available;
+}
+async function historyCheck(req,res){try{const plan=historyPlan(await readRequestJson(req)),available=await availableHistory(plan);const value={requested:plan.dates.length,available:available.length,first:available[0]?.stamp||null,last:available.at(-1)?.stamp||null};const body=JSON.stringify(value);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-store'}).end(body)}catch(error){const body=JSON.stringify({error:error.message});res.writeHead(400,{'content-type':'application/json; charset=utf-8'}).end(body)}}
+async function historyExport(req,res){let temporaryDirectory;try{
+  const plan=historyPlan(await readRequestJson(req));if(!Number.isInteger(plan.fps)||plan.fps<1||plan.fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(plan.format))throw new Error('形式が不正です');
+  const frames=await availableHistory(plan,true);if(!frames.length)throw new Error('指定期間の過去画像がありません');
+  temporaryDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'rivercam-history-'));
+  for(const [index,frame] of frames.entries())await fs.writeFile(path.join(temporaryDirectory,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
+  const output=path.join(temporaryDirectory,`export.${plan.format}`),input=path.join(temporaryDirectory,'%06d.jpg');
+  const args=plan.format==='mp4'
+    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p','-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',output]
+    :['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`fps=${plan.fps},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output];
+  await new Promise((resolve,reject)=>{const ffmpeg=spawn('ffmpeg',args,{stdio:['ignore','ignore','pipe']});let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)))});
+  const stat=await fs.stat(output),type=plan.format==='mp4'?'video/mp4':'image/gif';res.writeHead(200,{'content-type':type,'content-length':stat.size,'content-disposition':`attachment; filename="${plan.cameraId}_${plan.fps}fps.${plan.format}"`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
+}catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`Export failed: ${error.message}`)}finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
 async function readRequestJson(req,limit=1024*1024){
   const chunks=[];let size=0;
   for await(const chunk of req){size+=chunk.length;if(size>limit)throw new Error('Request too large');chunks.push(chunk)}
@@ -197,6 +232,9 @@ async function exportVideo(req,res){
   finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}
 }
 function serve(req,res){
+  if(req.method==='GET'&&req.url==='/api/cameras'){const list=cameras.map(({id,name,municipality})=>({id,name,municipality})).sort((a,b)=>`${a.municipality}${a.name}`.localeCompare(`${b.municipality}${b.name}`,'ja'));const body=JSON.stringify(list);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
+  if(req.method==='POST'&&req.url==='/api/history/check'){historyCheck(req,res);return}
+  if(req.method==='POST'&&req.url==='/api/history/export'){historyExport(req,res);return}
   if(req.method==='POST'&&req.url==='/api/export'){exportVideo(req,res);return}
   let requested;
   try{requested=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{res.writeHead(400).end('Bad URL');return}

@@ -13,6 +13,8 @@ async function init() {
   data = index;
   $('status').textContent = `索引更新 ${new Date(index.generatedAt).toLocaleString('ja-JP')} / 警報地域 ${status.activeWarnings?.length || 0} / 対象カメラ ${status.targetCameras || 0}`;
   for (const city of index.municipalities) $('city').add(new Option(city.name, city.name));
+  await loadHistoryCameras();
+  setHistoryDefaults();
   bind();
   render();
 }
@@ -28,6 +30,11 @@ function bind() {
   $('close').onclick = () => $('viewer').close();
   $('slider').oninput = event => showFrame(Number(event.target.value));
   $('export-video').onclick = exportVideo;
+  $('history-check').onclick = checkHistory;
+  $('history-export').onclick = exportHistory;
+  for (const id of ['history-camera', 'history-start', 'history-end', 'history-interval']) {
+    $(id).addEventListener('change', () => { $('history-export').disabled = true; $('history-status').textContent = '再確認してください'; });
+  }
 }
 
 function updateCameras() {
@@ -118,6 +125,73 @@ async function exportVideo() {
   } finally {
     button.disabled = false;
   }
+}
+
+async function loadHistoryCameras() {
+  const response = await fetch('/api/cameras');
+  if (!response.ok) throw new Error('カメラ一覧を取得できませんでした');
+  const cameras = await response.json();
+  const select = $('history-camera');
+  for (const camera of cameras) select.add(new Option(`${camera.municipality} / ${camera.name} (${camera.id})`, camera.id));
+}
+
+function localDateTimeValue(date) {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function setHistoryDefaults() {
+  const end = new Date();
+  end.setMinutes(Math.floor(end.getMinutes() / 10) * 10, 0, 0);
+  const start = new Date(end.getTime() - 6 * 3600000);
+  $('history-start').value = localDateTimeValue(start);
+  $('history-end').value = localDateTimeValue(end);
+}
+
+function historyRequest() {
+  return {
+    cameraId: $('history-camera').value,
+    start: $('history-start').value,
+    end: $('history-end').value,
+    intervalMinutes: Number($('history-interval').value),
+    fps: Number($('history-fps').value),
+    format: $('history-format').value
+  };
+}
+
+async function checkHistory() {
+  const status = $('history-status');
+  $('history-check').disabled = true;
+  $('history-export').disabled = true;
+  status.textContent = '過去画像を確認しています…';
+  try {
+    const response = await fetch('/api/history/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(historyRequest()) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    status.textContent = `${result.requested}時点中 ${result.available}枚を確認（${result.first || '-'} ～ ${result.last || '-'}）`;
+    $('history-export').disabled = result.available === 0;
+  } catch (error) { status.textContent = `確認失敗: ${error.message}`; }
+  finally { $('history-check').disabled = false; }
+}
+
+async function exportHistory() {
+  const status = $('history-status');
+  const button = $('history-export');
+  button.disabled = true;
+  status.textContent = '画像を取得して書き出しています…';
+  try {
+    const request = historyRequest();
+    const response = await fetch('/api/history/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) });
+    if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+    const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url;
+    const option = $('history-camera').selectedOptions[0];
+    link.download = `${option?.textContent || request.cameraId}_${request.fps}fps.${request.format}`.replace(/[\\/:*?"<>|]/g, '_');
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    status.textContent = '書き出しが完了しました（元画像はサーバーに保存していません）';
+  } catch (error) { status.textContent = `書き出し失敗: ${error.message}`; }
+  finally { button.disabled = false; }
 }
 
 init().catch(error => $('status').textContent = `エラー: ${error.message}`);
