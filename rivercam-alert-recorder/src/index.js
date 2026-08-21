@@ -112,8 +112,14 @@ function historyPlan(body){
   if(dates.length>8640)throw new Error('指定枚数が多すぎます');
   return {cameraId,dates,fps:Number(body.fps),format:String(body.format||'mp4')};
 }
+function historyCameraKey(cameraId){
+  const camera=cameras.find(item=>item.id===String(cameraId));if(!camera)throw new Error('Camera not found');
+  // 一部カメラは観測所IDではなく、現在画像URLの cctv_* ファイル名を履歴でも使用する。
+  const fileName=path.basename(new URL(camera.imageUrl).pathname).replace(/\.[^.]+$/,'');
+  return fileName.startsWith('cctv_')?fileName:camera.id;
+}
 async function fetchHistoryFrame(cameraId,date){
-  const stamp=historyStamp(date),url=`https://cam.river.go.jp/cam/history/${stamp}/${cameraId}.jpg`;
+  const stamp=historyStamp(date),key=historyCameraKey(cameraId),url=`https://cam.river.go.jp/cam/history/${stamp}/${key}.jpg`;
   const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam history exporter)','referer':'https://www.river.go.jp/'}});
   if(!response.ok||!(response.headers.get('content-type')||'').startsWith('image/'))return null;
   return {stamp,url,buffer:Buffer.from(await response.arrayBuffer())};
@@ -125,7 +131,7 @@ async function availableHistory(plan,includeBuffers=false){
 }
 async function historyCheck(req,res){try{const plan=historyPlan(await readRequestJson(req)),available=await availableHistory(plan);const value={requested:plan.dates.length,available:available.length,first:available[0]?.stamp||null,last:available.at(-1)?.stamp||null,frames:available.map(item=>item.stamp)};const body=JSON.stringify(value);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-store'}).end(body)}catch(error){const body=JSON.stringify({error:error.message});res.writeHead(400,{'content-type':'application/json; charset=utf-8'}).end(body)}}
 async function currentImage(res,cameraId){try{const camera=cameras.find(item=>item.id===cameraId);if(!camera)throw new Error('Camera not found');const response=await fetch(camera.imageUrl,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error(`Image HTTP ${response.status}`);const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':response.headers.get('content-type')||'image/jpeg','content-length':body.length,'cache-control':'no-cache'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
-async function historyImage(res,url){try{const cameraId=url.searchParams.get('cameraId')||'',stamp=url.searchParams.get('stamp')||'';if(!/^\d{6,15}$/.test(cameraId)||!/^\d{12}$/.test(stamp)||!cameras.some(item=>item.id===cameraId))throw new Error('Invalid request');const response=await fetch(`https://cam.river.go.jp/cam/history/${stamp}/${cameraId}.jpg`,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error('Image not found');const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':'image/jpeg','content-length':body.length,'cache-control':'private, max-age=300'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
+async function historyImage(res,url){try{const cameraId=url.searchParams.get('cameraId')||'',stamp=url.searchParams.get('stamp')||'';if(!/^\d{6,15}$/.test(cameraId)||!/^\d{12}$/.test(stamp)||!cameras.some(item=>item.id===cameraId))throw new Error('Invalid request');const key=historyCameraKey(cameraId),response=await fetch(`https://cam.river.go.jp/cam/history/${stamp}/${key}.jpg`,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error('Image not found');const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':'image/jpeg','content-length':body.length,'cache-control':'private, max-age=300'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
 async function municipalityZip(req,res){let temporaryDirectory;try{
   const body=await readRequestJson(req),prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),date=historyDate(body.time),selected=cameras.filter(item=>(prefecture==='北海道'?item.prefecture.startsWith('北海道'):item.prefecture===prefecture)&&item.municipality===municipality);
   if(!selected.length)throw new Error('市区町村のカメラがありません');if(date.getTime()<Date.now()-30*86400000||date>Date.now()+3600000)throw new Error('時刻は過去30日以内で指定してください');
