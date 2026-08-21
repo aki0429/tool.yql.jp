@@ -160,14 +160,21 @@ async function exportHistory() {
 
 async function exportMunicipalityZip() {
   const button = $('zip-export'), status = $('zip-status'), request = historyRequest();
-  button.disabled = true; status.textContent = '全カメラの過去画像を取得・エンコードしています…（時間がかかります）';
+  button.disabled = true; status.textContent = '処理を開始しています…';
   try {
-    const response = await fetch('/api/municipality/zip', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...request, prefecture: $('prefecture').value, municipality: $('municipality').value })
-    });
-    await downloadResponse(response, `${$('prefecture').value}_${$('municipality').value}_${request.format}.zip`);
-    status.textContent = '全カメラのエンコードとZIP保存が完了しました';
+    const response = await fetch('/api/municipality/zip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, prefecture: $('prefecture').value, municipality: $('municipality').value }) });
+    const created = await response.json(); if (!response.ok) throw new Error(created.error || `HTTP ${response.status}`);
+    let job;
+    for (;;) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const statusResponse = await fetch(`/api/export-jobs/${created.jobId}`); job = await statusResponse.json();
+      if (!statusResponse.ok) throw new Error(job.error || `HTTP ${statusResponse.status}`);
+      const percent = job.total ? Math.round(job.completed / job.total * 100) : 0;
+      status.textContent = `${job.current}　${job.completed}/${job.total || '?'}台（${percent}%）`;
+      if (job.state === 'done') break; if (job.state === 'error') throw new Error(job.error || '処理に失敗しました');
+    }
+    await downloadResponse(await fetch(`/api/export-jobs/${created.jobId}/download`), `${$('prefecture').value}_${$('municipality').value}_${request.format}.zip`);
+    status.textContent = `ZIP保存が完了しました（成功 ${job.success}台）`;
   } catch (error) { status.textContent = `ZIP失敗: ${error.message}`; }
   finally { button.disabled = false; }
 }

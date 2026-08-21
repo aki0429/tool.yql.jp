@@ -10,6 +10,7 @@ import { buildIndex } from './build-index.js';
 const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public'), warningLogFile=path.join(main,'warning-log.json'), attributionFont=path.join(ROOT,'assets','NotoSansCJKjp-Regular.otf');
 const attributionFilter=`drawtext=fontfile=${attributionFont}:text='提供\\：国土交通省':fontcolor=white:fontsize=h/28:x=w-tw-18:y=h-th-16:box=1:boxcolor=black@0.62:boxborderw=9`;
 let cameras=[], areaMap={}, active=new Map(), running=false, lastPoll=null, warningLog=[];
+const exportJobs=new Map();
 function normalizeMunicipalityName(value){
   return String(value||'').normalize('NFKC').replace(/[ 　]/g,'').replace(/^.+郡(?=.+[町村]$)/,'').replace(/^.+振興局(?=.+[市町村区]$)/,'');
 }
@@ -157,6 +158,43 @@ async function municipalityZip(req,res){let temporaryDirectory,output;try{
   output=path.join(os.tmpdir(),`rivercam-${process.pid}-${Date.now()}.zip`);const script='import os,sys,zipfile\nout,folder=sys.argv[1:3]\nwith zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:\n for name in os.listdir(folder): z.write(os.path.join(folder,name),name)\n';await new Promise((resolve,reject)=>{const zip=spawn('python3',['-c',script,output,encodedDirectory]);let error='';zip.stderr.on('data',chunk=>error+=chunk);zip.on('error',reject);zip.on('close',code=>code===0?resolve():reject(new Error(`zip ${code}: ${error.trim()}`)))});
   const stat=await fs.stat(output),name=encodeURIComponent(requestedIds.length?`rivercam-slideshow_${format}.zip`:`${prefecture}_${municipality}_${format}.zip`);res.writeHead(200,{'content-type':'application/zip','content-length':stat.size,'content-disposition':`attachment; filename*=UTF-8''${name}`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
 }catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`ZIP failed: ${error.message}`)}finally{if(output)await fs.unlink(output).catch(()=>{});if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
+async function buildCameraZip(body,update){
+  let temporaryDirectory,output;
+  try{
+    const prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),requestedIds=Array.isArray(body.cameraIds)?[...new Set(body.cameraIds.map(String))]:[];
+    if(requestedIds.length>100)throw new Error('一度に保存できるカメラは100台までです');
+    const selected=requestedIds.length?requestedIds.map(id=>cameras.find(item=>item.id===id)).filter(Boolean):cameras.filter(item=>(prefecture==='北海道'?item.prefecture.startsWith('北海道'):item.prefecture===prefecture)&&item.municipality===municipality);
+    if(!selected.length)throw new Error(requestedIds.length?'有効なカメラがありません':'市区町村のカメラがありません');
+    const samplePlan=historyPlan({...body,cameraId:selected[0].id}),fps=samplePlan.fps,format=samplePlan.format;
+    if(!Number.isInteger(fps)||fps<1||fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(format))throw new Error('形式が不正です');
+    if(selected.length*samplePlan.dates.length>20000)throw new Error('処理量が多すぎます。期間を短くするか取得間隔を長くしてください');
+    temporaryDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'rivercam-job-'));const encodedDirectory=path.join(temporaryDirectory,'encoded');await fs.mkdir(encodedDirectory);const results=[];let completed=0;
+    update({phase:'encoding',total:selected.length,completed:0,current:'画像を取得しています'});
+    // カメラ2台を並行処理し、各ffmpegは2スレッドでエンコードする。
+    await mapLimit(selected,2,async camera=>{const work=path.join(temporaryDirectory,`work-${camera.id}`);await fs.mkdir(work);try{
+      update({current:`${camera.name} の画像を取得中`});
+      const frames=(await mapLimit(samplePlan.dates,4,date=>fetchHistoryFrame(camera.id,date))).filter(item=>item&&!item.error);
+      if(!frames.length){results.push({id:camera.id,name:camera.name,status:'画像なし'});return}
+      for(const [index,frame] of frames.entries())await fs.writeFile(path.join(work,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
+      const fileName=`${safeName(camera.name)}_${camera.id}_${historyStamp(samplePlan.dates[0])}-${historyStamp(samplePlan.dates.at(-1))}.${format}`,target=path.join(encodedDirectory,fileName);
+      update({current:`${camera.name} をエンコード中`});
+      const args=videoArgs(path.join(work,'%06d.jpg'),target,fps,format);if(format==='mp4')args.splice(args.indexOf('-preset'),0,'-threads','2');
+      await runFfmpeg(args);results.push({id:camera.id,name:camera.name,status:'成功',frames:frames.length,file:fileName});
+    }catch(error){results.push({id:camera.id,name:camera.name,status:'失敗',error:error.message})}finally{await fs.rm(work,{recursive:true,force:true});completed++;update({completed,current:`${camera.name} 完了`})}});
+    if(!results.some(item=>item.status==='成功'))throw new Error('エンコードできるカメラがありません');
+    await fs.writeFile(path.join(encodedDirectory,'結果.json'),JSON.stringify({prefecture:prefecture||null,municipality:municipality||null,selection:requestedIds.length?'slideshow':'municipality',start:body.start,end:body.end,intervalMinutes:body.intervalMinutes,fps,format,cameras:results},null,2));
+    update({phase:'zipping',current:'ZIPを作成しています'});output=path.join(os.tmpdir(),`rivercam-job-${process.pid}-${Date.now()}.zip`);const script='import os,sys,zipfile\nout,folder=sys.argv[1:3]\nwith zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:\n for name in os.listdir(folder): z.write(os.path.join(folder,name),name)\n';await new Promise((resolve,reject)=>{const zip=spawn('python3',['-c',script,output,encodedDirectory]);let error='';zip.stderr.on('data',chunk=>error+=chunk);zip.on('error',reject);zip.on('close',code=>code===0?resolve():reject(new Error(`zip ${code}: ${error.trim()}`)))});
+    const name=requestedIds.length?`rivercam-slideshow_${format}.zip`:`${prefecture}_${municipality}_${format}.zip`;
+    return {output,name,results};
+  }finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}
+}
+function createExportJob(body){
+  const id=`${Date.now().toString(36)}-${crypto.randomUUID()}`,job={id,state:'queued',phase:'queued',createdAt:new Date().toISOString(),completed:0,total:0,current:'処理待ち',error:null,output:null,name:null};exportJobs.set(id,job);
+  const update=value=>Object.assign(job,value,{updatedAt:new Date().toISOString()});
+  setImmediate(async()=>{try{update({state:'running'});const result=await buildCameraZip(body,update);update({state:'done',phase:'done',current:'完了',output:result.output,name:result.name,success:result.results.filter(item=>item.status==='成功').length})}catch(error){update({state:'error',phase:'error',current:'失敗',error:error.message})}});
+  return job;
+}
+setInterval(async()=>{const cutoff=Date.now()-2*3600000;for(const [id,job] of exportJobs)if(new Date(job.createdAt).getTime()<cutoff){if(job.output)await fs.unlink(job.output).catch(()=>{});exportJobs.delete(id)}},10*60000).unref();
 async function historyExport(req,res){let temporaryDirectory;try{
   const plan=historyPlan(await readRequestJson(req));if(!Number.isInteger(plan.fps)||plan.fps<1||plan.fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(plan.format))throw new Error('形式が不正です');
   const frames=await availableHistory(plan,true);if(!frames.length)throw new Error('指定期間の過去画像がありません');
@@ -214,7 +252,8 @@ function serve(req,res){
   if(req.method==='GET'&&url.pathname==='/api/warnings'){const body=JSON.stringify(warningLog.map(({signature,...entry})=>entry));res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
   if(req.method==='GET'&&url.pathname.startsWith('/api/current/')){currentImage(res,url.pathname.split('/').pop());return}
   if(req.method==='GET'&&url.pathname==='/api/history/image'){historyImage(res,url);return}
-  if(req.method==='POST'&&(url.pathname==='/api/municipality/zip'||url.pathname==='/api/cameras/zip')){municipalityZip(req,res);return}
+  if(req.method==='POST'&&(url.pathname==='/api/municipality/zip'||url.pathname==='/api/cameras/zip')){readRequestJson(req).then(body=>{const job=createExportJob(body),response=JSON.stringify({jobId:job.id});res.writeHead(202,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(response),'cache-control':'no-store'}).end(response)}).catch(error=>res.writeHead(400,{'content-type':'application/json; charset=utf-8'}).end(JSON.stringify({error:error.message})));return}
+  if(req.method==='GET'&&url.pathname.startsWith('/api/export-jobs/')){const parts=url.pathname.split('/').filter(Boolean),job=exportJobs.get(parts[2]);if(!job){res.writeHead(404,{'content-type':'application/json; charset=utf-8'}).end(JSON.stringify({error:'ジョブがありません'}));return}if(parts[3]==='download'){if(job.state!=='done'||!job.output){res.writeHead(409,{'content-type':'text/plain; charset=utf-8'}).end('まだ完了していません');return}fs.stat(job.output).then(stat=>{res.writeHead(200,{'content-type':'application/zip','content-length':stat.size,'content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(job.name)}`,'cache-control':'no-store'});(async()=>{const stream=(await import('node:fs')).createReadStream(job.output);stream.pipe(res)})()}).catch(()=>res.writeHead(404).end());return}const {output,...status}=job,response=JSON.stringify(status);res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(response),'cache-control':'no-store'}).end(response);return}
   if(req.method==='POST'&&url.pathname==='/api/history/check'){historyCheck(req,res);return}
   if(req.method==='POST'&&req.url==='/api/history/export'){historyExport(req,res);return}
   if(req.method==='POST'&&req.url==='/api/export'){exportVideo(req,res);return}
