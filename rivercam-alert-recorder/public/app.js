@@ -36,8 +36,7 @@ function setDefaultTimes() {
   end.setMinutes(Math.floor(end.getMinutes() / 10) * 10, 0, 0);
   $('history-end').value = localDateTimeValue(end);
   $('history-start').value = localDateTimeValue(new Date(end.getTime() - 6 * 3600000));
-  $('zip-time').value = localDateTimeValue(end);
-  for (const input of [$('history-start'), $('history-end'), $('zip-time')]) {
+  for (const input of [$('history-start'), $('history-end')]) {
     input.min = localDateTimeValue(new Date(end.getTime() - 30 * 86400000));
     input.max = localDateTimeValue(end);
   }
@@ -160,12 +159,15 @@ async function exportHistory() {
 }
 
 async function exportMunicipalityZip() {
-  const button = $('zip-export'), status = $('zip-status');
-  button.disabled = true; status.textContent = '全カメラを取得しています…';
+  const button = $('zip-export'), status = $('zip-status'), request = historyRequest();
+  button.disabled = true; status.textContent = '全カメラの過去画像を取得・エンコードしています…（時間がかかります）';
   try {
-    const response = await fetch('/api/municipality/zip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prefecture: $('prefecture').value, municipality: $('municipality').value, time: $('zip-time').value }) });
-    await downloadResponse(response, `${$('prefecture').value}_${$('municipality').value}.zip`);
-    status.textContent = 'ZIP保存が完了しました';
+    const response = await fetch('/api/municipality/zip', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...request, prefecture: $('prefecture').value, municipality: $('municipality').value })
+    });
+    await downloadResponse(response, `${$('prefecture').value}_${$('municipality').value}_${request.format}.zip`);
+    status.textContent = '全カメラのエンコードとZIP保存が完了しました';
   } catch (error) { status.textContent = `ZIP失敗: ${error.message}`; }
   finally { button.disabled = false; }
 }
