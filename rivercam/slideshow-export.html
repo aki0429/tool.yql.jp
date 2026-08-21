@@ -26,7 +26,7 @@
   </section>
 </main>
 <script>
-const EXPORT_SERVER='http://100.121.87.80:8787',ids=(new URLSearchParams(location.search).get('cams')||'').split(',').filter(id=>/^\d{6,15}$/.test(id));
+const EXPORT_SERVER='https://rivercamdlsystem.ikunocam.net',ids=(new URLSearchParams(location.search).get('cams')||'').split(',').filter(id=>/^\d{6,15}$/.test(id));
 const $=id=>document.getElementById(id);let valid=[];
 function localValue(date){return new Date(date-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 function setPeriod(hours,button){const end=new Date();end.setMinutes(Math.floor(end.getMinutes()/5)*5,0,0);$('end').value=localValue(end);$('start').value=localValue(new Date(end-hours*3600000));document.querySelectorAll('.periods button').forEach(item=>item.classList.toggle('active',item===button))}

@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             // 履歴書き出しサーバー側でカメラIDを検証する。URLが長くなりすぎないようIDのみ渡す。
-            const url = `http://100.121.87.80:8787/slideshow-export.html?cams=${encodeURIComponent(slideshowIds.join(','))}`;
+            const url = `https://rivercamdlsystem.ikunocam.net/slideshow-export.html?cams=${encodeURIComponent(slideshowIds.join(','))}`;
             window.open(url, '_blank', 'noopener');
         });
 
