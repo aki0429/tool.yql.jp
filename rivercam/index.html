@@ -8,12 +8,13 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <link rel="preconnect" href="https://cyberjapandata.gsi.go.jp">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js" defer></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
 </head>
 <body>
     <main id="map" aria-label="河川カメラ・河川警報・水位観測所の地図"></main>
@@ -29,6 +30,7 @@
 
     <div class="btns">
         <button id="slideshow_start_btn" class="button" type="button">スライドショー開始</button>
+        <button id="slideshow_save_btn" class="button" type="button">スライドショーを保存</button>
         <button id="slideshow_edit_btn" class="button" type="button">スライドショー編集</button>
     </div>
 
@@ -39,6 +41,15 @@
                 <span id="river-data-state" class="data-state is-loading" aria-hidden="true"></span>
                 <span id="river-data-status" role="status" aria-live="polite">河川情報を取得中...</span>
                 <button id="river_refresh_btn" class="refresh-button" type="button">更新</button>
+            </div>
+            <div id="river-progress" class="river-progress" hidden aria-live="polite">
+                <div class="river-progress-label">
+                    <span id="river-progress-text">河川情報を取得中...</span>
+                    <strong id="river-progress-percent">0%</strong>
+                </div>
+                <div class="river-progress-track" role="progressbar" aria-label="河川情報の更新進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="river-progress-bar" class="river-progress-bar"></div>
+                </div>
             </div>
             <p id="water-gauge-hint" class="water-gauge-hint">地図を拡大すると、表示範囲内の全水位計を表示します。</p>
             <div class="legend-section" aria-label="水位計の色凡例">

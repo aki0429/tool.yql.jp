@@ -137,8 +137,10 @@ function videoArgs(input,output,fps,format){return format==='mp4'
   ?['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
   :['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`fps=${fps},${attributionFilter},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output]}
 async function municipalityZip(req,res){let temporaryDirectory,output;try{
-  const body=await readRequestJson(req),prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),selected=cameras.filter(item=>(prefecture==='北海道'?item.prefecture.startsWith('北海道'):item.prefecture===prefecture)&&item.municipality===municipality);
-  if(!selected.length)throw new Error('市区町村のカメラがありません');
+  const body=await readRequestJson(req),prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),requestedIds=Array.isArray(body.cameraIds)?[...new Set(body.cameraIds.map(String))]:[];
+  if(requestedIds.length>100)throw new Error('一度に保存できるカメラは100台までです');
+  const selected=requestedIds.length?requestedIds.map(id=>cameras.find(item=>item.id===id)).filter(Boolean):cameras.filter(item=>(prefecture==='北海道'?item.prefecture.startsWith('北海道'):item.prefecture===prefecture)&&item.municipality===municipality);
+  if(!selected.length)throw new Error(requestedIds.length?'有効なカメラがありません':'市区町村のカメラがありません');
   const samplePlan=historyPlan({...body,cameraId:selected[0].id}),fps=samplePlan.fps,format=samplePlan.format;
   if(!Number.isInteger(fps)||fps<1||fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(format))throw new Error('形式が不正です');
   if(selected.length*samplePlan.dates.length>20000)throw new Error('全カメラの処理量が多すぎます。期間を短くするか取得間隔を長くしてください');
@@ -151,9 +153,9 @@ async function municipalityZip(req,res){let temporaryDirectory,output;try{
     await runFfmpeg(videoArgs(path.join(work,'%06d.jpg'),target,fps,format));results.push({id:camera.id,name:camera.name,status:'成功',frames:frames.length,file:fileName});
   }catch(error){results.push({id:camera.id,name:camera.name,status:'失敗',error:error.message})}finally{await fs.rm(work,{recursive:true,force:true})}});
   if(!results.some(item=>item.status==='成功'))throw new Error('エンコードできるカメラがありません');
-  await fs.writeFile(path.join(encodedDirectory,'結果.json'),JSON.stringify({prefecture,municipality,start:body.start,end:body.end,intervalMinutes:body.intervalMinutes,fps,format,cameras:results},null,2));
+  await fs.writeFile(path.join(encodedDirectory,'結果.json'),JSON.stringify({prefecture:prefecture||null,municipality:municipality||null,selection:requestedIds.length?'slideshow':'municipality',start:body.start,end:body.end,intervalMinutes:body.intervalMinutes,fps,format,cameras:results},null,2));
   output=path.join(os.tmpdir(),`rivercam-${process.pid}-${Date.now()}.zip`);const script='import os,sys,zipfile\nout,folder=sys.argv[1:3]\nwith zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as z:\n for name in os.listdir(folder): z.write(os.path.join(folder,name),name)\n';await new Promise((resolve,reject)=>{const zip=spawn('python3',['-c',script,output,encodedDirectory]);let error='';zip.stderr.on('data',chunk=>error+=chunk);zip.on('error',reject);zip.on('close',code=>code===0?resolve():reject(new Error(`zip ${code}: ${error.trim()}`)))});
-  const stat=await fs.stat(output),name=encodeURIComponent(`${prefecture}_${municipality}_${format}.zip`);res.writeHead(200,{'content-type':'application/zip','content-length':stat.size,'content-disposition':`attachment; filename*=UTF-8''${name}`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
+  const stat=await fs.stat(output),name=encodeURIComponent(requestedIds.length?`rivercam-slideshow_${format}.zip`:`${prefecture}_${municipality}_${format}.zip`);res.writeHead(200,{'content-type':'application/zip','content-length':stat.size,'content-disposition':`attachment; filename*=UTF-8''${name}`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
 }catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`ZIP failed: ${error.message}`)}finally{if(output)await fs.unlink(output).catch(()=>{});if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
 async function historyExport(req,res){let temporaryDirectory;try{
   const plan=historyPlan(await readRequestJson(req));if(!Number.isInteger(plan.fps)||plan.fps<1||plan.fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(plan.format))throw new Error('形式が不正です');
@@ -212,7 +214,7 @@ function serve(req,res){
   if(req.method==='GET'&&url.pathname==='/api/warnings'){const body=JSON.stringify(warningLog.map(({signature,...entry})=>entry));res.writeHead(200,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(body),'cache-control':'no-cache'}).end(body);return}
   if(req.method==='GET'&&url.pathname.startsWith('/api/current/')){currentImage(res,url.pathname.split('/').pop());return}
   if(req.method==='GET'&&url.pathname==='/api/history/image'){historyImage(res,url);return}
-  if(req.method==='POST'&&url.pathname==='/api/municipality/zip'){municipalityZip(req,res);return}
+  if(req.method==='POST'&&(url.pathname==='/api/municipality/zip'||url.pathname==='/api/cameras/zip')){municipalityZip(req,res);return}
   if(req.method==='POST'&&url.pathname==='/api/history/check'){historyCheck(req,res);return}
   if(req.method==='POST'&&req.url==='/api/history/export'){historyExport(req,res);return}
   if(req.method==='POST'&&req.url==='/api/export'){exportVideo(req,res);return}

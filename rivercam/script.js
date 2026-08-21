@@ -73,11 +73,22 @@ const WATER_GAUGE_FETCH_PADDING = 0.45;
 const RAIN_RADAR_REFRESH_MS = 5 * 60 * 1000;
 const RAIN_RADAR_TARGET_TIMES_URL = 'https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json';
 const riverLoadState = {
-    gauges: { loading: false, error: '', count: 0, updatedAt: '' },
-    warnings: { loading: false, error: '', count: 0, totalCount: 0, updatedAt: '' },
+    gauges: { loading: false, progress: 0, error: '', count: 0, updatedAt: '' },
+    warnings: { loading: false, progress: 0, error: '', count: 0, totalCount: 0, updatedAt: '' },
 };
 let waterGaugeResponseCache = null;
 let riverWarningResponseCache = null;
+let nationwideGaugeCache = null;
+let nationwideGaugeTimer = null;
+let nationwideGaugeRefreshSeq = 0;
+let fetchingNationwideGauges = false;
+let waterGaugeRenderSequence = 0;
+let cameraRenderSequence = 0;
+let waterGaugeSpatialIndex = new Map();
+let cameraSpatialIndex = new Map();
+
+const SPATIAL_CELL_SIZE = 0.0003;
+const WATER_GAUGE_RENDER_BATCH_SIZE = 160;
 
 const WATER_LEVEL_STYLES = [
     { minimum: 90, rank: 5, label: '氾濫発生', color: '#140014', textColor: '#ffffff' },
@@ -112,22 +123,27 @@ function initMap() {
 
     map = L.map('map', {
         zoomSnap: 0,
-        center: initialCenter, // 初期位置を適用
-        zoom: initialZoom,     // 初期ズームを適用
+        center: initialCenter,
+        zoom: initialZoom,
         minZoom: 4,
+        preferCanvas: true,
     });
 
     map.zoomControl.setPosition('topright');
 
     // ベースマップの定義
     baseMap = {
+        "地理院地図 標準": L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+            maxNativeZoom: 18,
+        }),
         "Google Maps": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             attribution: '&copy; Google',
         })
     };
 
     // デフォルトのベースマップをマップに追加
-    baseMap["Google Maps"].addTo(map);
+    baseMap["地理院地図 標準"].addTo(map);
 
     markers = L.markerClusterGroup({
         showCoverageOnHover: false,
@@ -172,7 +188,7 @@ function initMap() {
     };
 
     map.on('moveend zoomend', updateHash);
-    map.on('moveend zoomend', scheduleWaterGaugeLoad);
+    map.on('moveend zoomend', () => scheduleWaterGaugeLoad(false));
     map.on('overlayadd', (event) => {
         if (event.layer === waterGaugeLayer) scheduleWaterGaugeLoad(true);
         if (event.layer === riverWarningLayer && riverWarningLayer.getLayers().length === 0) {
@@ -182,17 +198,19 @@ function initMap() {
     // ▲▲▲ ここまで ▲▲▲
 
 
-    loadAllCameraData();
+    setTimeout(function () { loadAllCameraData(); }, 100);
     loadRiverWarnings();
     scheduleWaterGaugeLoad(true);
+    scheduleNationwideGaugeRefresh();
 
-    // 雨雲レーダーレイヤーを作成してコントロールに追加
-    createRadarLayer().then(layer => {
+    setTimeout(function () {
+      createRadarLayer().then(layer => {
         if (layer) {
-            radarLayer = layer;
-            layerControl.addOverlay(radarLayer, '気象庁 雨雲レーダー');
+          radarLayer = layer;
+          layerControl.addOverlay(radarLayer, '気象庁 雨雲レーダー');
         }
-    });
+      });
+    }, 2000);
 }
 
 // 雨雲レーダーレイヤーを作成する関数
@@ -421,6 +439,17 @@ document.addEventListener('DOMContentLoaded', function() {
             window.open(url, '_blank');
         });
 
+        document.getElementById('slideshow_save_btn').addEventListener('click', () => {
+            const slideshowIds = Object.keys(slideshowList);
+            if (slideshowIds.length === 0) {
+                alert('保存するカメラがありません。\nマップ上のカメラをクリックして「スライドショーに保存」にチェックを入れてください。');
+                return;
+            }
+            // 履歴書き出しサーバー側でカメラIDを検証する。URLが長くなりすぎないようIDのみ渡す。
+            const url = `http://100.121.87.80:8787/slideshow-export.html?cams=${encodeURIComponent(slideshowIds.join(','))}`;
+            window.open(url, '_blank', 'noopener');
+        });
+
         document.getElementById('slideshow_edit_btn').addEventListener('click', openEditModal);
 
         document.getElementById('close_div_slideshow_edit').addEventListener('click', () => {
@@ -582,7 +611,7 @@ function getDistanceMeters(leftPoint, rightPoint) {
 function findNearbyWaterGauge(camera) {
     let nearest = null;
     let nearestDistance = SAME_LOCATION_DISTANCE_METERS;
-    visibleWaterGaugeStations.forEach((station) => {
+    forEachNearbySpatialItem(waterGaugeSpatialIndex, camera, (station) => {
         const distance = getDistanceMeters(camera, station);
         if (distance <= nearestDistance) {
             nearest = station;
@@ -595,14 +624,43 @@ function findNearbyWaterGauge(camera) {
 function findNearbyCamera(station) {
     let nearest = null;
     let nearestDistance = SAME_LOCATION_DISTANCE_METERS;
-    Object.entries(pointLatLngList).forEach(([camId, camera]) => {
+    forEachNearbySpatialItem(cameraSpatialIndex, station, (camera) => {
         const distance = getDistanceMeters(station, camera);
         if (distance <= nearestDistance) {
-            nearest = { id: camId, ...camera };
+            nearest = camera;
             nearestDistance = distance;
         }
     });
     return nearest;
+}
+
+function spatialCellKey(lat, lng) {
+    return `${Math.floor(Number(lat) / SPATIAL_CELL_SIZE)}:${Math.floor(Number(lng) / SPATIAL_CELL_SIZE)}`;
+}
+
+function buildSpatialIndex(items, getItem = (item) => item) {
+    const index = new Map();
+    items.forEach((item) => {
+        const value = getItem(item);
+        if (!value || !hasNumericValue(value.lat) || !hasNumericValue(value.lng)) return;
+        const key = spatialCellKey(value.lat, value.lng);
+        const bucket = index.get(key);
+        if (bucket) bucket.push(value);
+        else index.set(key, [value]);
+    });
+    return index;
+}
+
+function forEachNearbySpatialItem(index, point, callback) {
+    if (!point || !hasNumericValue(point.lat) || !hasNumericValue(point.lng)) return;
+    const row = Math.floor(Number(point.lat) / SPATIAL_CELL_SIZE);
+    const column = Math.floor(Number(point.lng) / SPATIAL_CELL_SIZE);
+    for (let latOffset = -1; latOffset <= 1; latOffset += 1) {
+        for (let lngOffset = -1; lngOffset <= 1; lngOffset += 1) {
+            const bucket = index.get(`${row + latOffset}:${column + lngOffset}`);
+            if (bucket) bucket.forEach(callback);
+        }
+    }
 }
 
 function createCameraIcon(hasGauge = false) {
@@ -787,11 +845,14 @@ function openSameLocationChoicePopup(anchor, camera, station) {
 
 function drawMap() {
     if (!markers) return;
+    const renderSequence = ++cameraRenderSequence;
+    const cameras = Object.entries(pointLatLngList);
     markers.clearLayers();
-    const newMarkers = [];
-
-    Object.keys(pointLatLngList).forEach(camId => {
-        const camera = pointLatLngList[camId];
+    const addBatch = (start) => {
+        if (renderSequence !== cameraRenderSequence) return;
+        const newMarkers = [];
+        const end = Math.min(start + WATER_GAUGE_RENDER_BATCH_SIZE, cameras.length);
+        cameras.slice(start, end).forEach(([camId, camera]) => {
         const latlon = new L.LatLng(camera.lat, camera.lng);
         const cameraTooltip = document.createElement('span');
         cameraTooltip.textContent = camera.name;
@@ -811,8 +872,11 @@ function drawMap() {
             openCameraModal(camId, camera);
         });
         newMarkers.push(kariMarker);
-    });
-    markers.addLayers(newMarkers);
+        });
+        markers.addLayers(newMarkers);
+        if (end < cameras.length) setTimeout(() => addBatch(end), 0);
+    };
+    addBatch(0);
 }
 
 function updateLoadingProgress(done, total) {
@@ -874,31 +938,62 @@ async function loadCameraFile(file) {
     }
 }
 
+function applyCameraIndex(cameras) {
+    if (!Array.isArray(cameras)) return 0;
+    let loaded = 0;
+    for (const row of cameras) {
+        // 転送量削減のため統合indexは [id, name, lat, lng] の配列形式。
+        if (!Array.isArray(row) || row.length < 4) continue;
+        const [id, name, lat, lng] = row;
+        if (id === null || id === undefined || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) continue;
+        pointLatLngList[String(id)] = { name: String(name || ''), lat: Number(lat), lng: Number(lng) };
+        loaded += 1;
+    }
+    return loaded;
+}
+
+async function loadLegacyCameraFiles() {
+    const listResponse = await fetchWithTimeout('json_files_list.json', 12000);
+    if (!listResponse.ok) throw new Error('ファイルリストの取得に失敗');
+    const fileList = await listResponse.json();
+    const files = Array.isArray(fileList.files) ? fileList.files : [];
+    const total = files.length;
+    let done = 0;
+    let nextIndex = 0;
+    updateLoadingProgress(done, total);
+
+    const worker = async () => {
+        while (nextIndex < total) {
+            const file = files[nextIndex++];
+            await loadCameraFile(file);
+            done += 1;
+            if (done === total || done % 20 === 0) updateLoadingProgress(done, total);
+        }
+    };
+    // HTTP/2でも大量の小さいJSONは遅いため、fallback時は同時数を増やす。
+    const workerCount = Math.min(16, Math.max(1, total));
+    await Promise.all(Array.from({ length: workerCount }, worker));
+}
+
 async function loadAllCameraData() {
     const loader = document.getElementById('loader');
 
     try {
-        const listResponse = await fetchWithTimeout('json_files_list.json', 12000);
-        if (!listResponse.ok) throw new Error('ファイルリストの取得に失敗');
-        const fileList = await listResponse.json();
-        const files = Array.isArray(fileList.files) ? fileList.files : [];
-        const total = files.length;
-        let done = 0;
-        let nextIndex = 0;
-        updateLoadingProgress(done, total);
+        // 旧方式は約1,400個のJSONを個別取得していた。静的に統合した軽量indexを
+        // 1リクエストで取得し、HTTP往復・JSON.parse・localStorageアクセスを削減する。
+        try {
+            const indexResponse = await fetchWithTimeout('camera_index.json', 15000);
+            if (!indexResponse.ok) throw new Error(`HTTP ${indexResponse.status}`);
+            const index = await indexResponse.json();
+            const count = applyCameraIndex(index.cameras);
+            if (count === 0) throw new Error('統合カメラindexが空です');
+            updateLoadingProgress(count, count);
+        } catch (indexError) {
+            console.warn('統合カメラindexを利用できないため旧方式で取得します:', indexError);
+            await loadLegacyCameraFiles();
+        }
 
-        const worker = async () => {
-            while (nextIndex < total) {
-                const file = files[nextIndex];
-                nextIndex += 1;
-                await loadCameraFile(file);
-                done += 1;
-                updateLoadingProgress(done, total);
-            }
-        };
-        const workerCount = Math.min(12, Math.max(1, total));
-        await Promise.all(Array.from({ length: workerCount }, worker));
-
+        cameraSpatialIndex = buildSpatialIndex(Object.entries(pointLatLngList), ([id, camera]) => ({ id, ...camera }));
         drawMap();
         if (visibleWaterGaugeStations.length > 0) {
             renderWaterGaugeMarkers(visibleWaterGaugeStations, false);
@@ -1111,6 +1206,7 @@ function updateRiverDataStatus() {
         : `警報 ${riverLoadState.warnings.count}件`;
     refresh.disabled = isLoading;
     state.className = `data-state${isLoading ? ' is-loading' : hasError ? ' is-error' : ''}`;
+    updateRiverProgress(isLoading);
 
     if (isLoading) {
         status.textContent = '河川警報・水位計を更新中...';
@@ -1131,6 +1227,34 @@ function updateRiverDataStatus() {
     status.textContent = `${warningCountText}・水位計 ${riverLoadState.gauges.count}地点${shortTime ? `（${shortTime}）` : ''}`;
 }
 
+function updateRiverProgress(isLoading = riverLoadState.gauges.loading || riverLoadState.warnings.loading) {
+    const progress = document.getElementById('river-progress');
+    const bar = document.getElementById('river-progress-bar');
+    const percent = document.getElementById('river-progress-percent');
+    const text = document.getElementById('river-progress-text');
+    const track = progress?.querySelector('[role="progressbar"]');
+    if (!progress || !bar || !percent || !text || !track) return;
+
+    const gaugeProgress = riverLoadState.gauges.loading
+        ? riverLoadState.gauges.progress
+        : 100;
+    const warningProgress = riverLoadState.warnings.loading
+        ? riverLoadState.warnings.progress
+        : 100;
+    const value = Math.round((gaugeProgress + warningProgress) / 2);
+    const label = riverLoadState.gauges.loading && riverLoadState.warnings.loading
+        ? '河川警報・水位計を更新中...'
+        : riverLoadState.gauges.loading
+            ? '水位計を更新中...'
+            : '河川警報を更新中...';
+
+    progress.hidden = !isLoading;
+    bar.style.width = `${value}%`;
+    percent.textContent = `${value}%`;
+    text.textContent = label;
+    track.setAttribute('aria-valuenow', String(value));
+}
+
 async function loadRiverWarnings(force = false) {
     if (!riverWarningLayer) return;
     if (!force && isFreshCache(riverWarningResponseCache)) {
@@ -1147,6 +1271,7 @@ async function loadRiverWarnings(force = false) {
         controller.abort();
     }, 60000);
     riverLoadState.warnings.loading = true;
+    riverLoadState.warnings.progress = 10;
     riverLoadState.warnings.error = '';
     updateRiverDataStatus();
 
@@ -1154,6 +1279,7 @@ async function loadRiverWarnings(force = false) {
         const data = await fetchRiverData({ action: 'warnings' }, controller.signal);
         if (requestId !== warningRequestSequence) return;
         riverWarningResponseCache = { timestamp: Date.now(), data };
+        riverLoadState.warnings.progress = 80;
         applyRiverWarningData(data);
     } catch (error) {
         if ((error.name !== 'AbortError' || timedOut) && requestId === warningRequestSequence) {
@@ -1164,15 +1290,51 @@ async function loadRiverWarnings(force = false) {
         clearTimeout(timeout);
         if (requestId === warningRequestSequence) {
             riverLoadState.warnings.loading = false;
+            riverLoadState.warnings.progress = 100;
             if (activeWarningController === controller) activeWarningController = null;
             updateRiverDataStatus();
         }
     }
 }
 
+function alignToFiveMinuteInterval() {
+    const now = Date.now();
+    const next = Math.ceil(now / 300000) * 300000;
+    return next - now + 100;
+}
+
+async function fetchNationwideGauges() {
+    if (fetchingNationwideGauges) return;
+    fetchingNationwideGauges = true;
+    const seq = ++nationwideGaugeRefreshSeq;
+    try {
+        const data = await fetchRiverData({ action: 'gauges-all' });
+        if (seq !== nationwideGaugeRefreshSeq) return;
+        nationwideGaugeCache = { timestamp: Date.now(), data };
+        scheduleWaterGaugeLoad(true);
+    } catch (error) {
+        console.error('全国水位データの取得に失敗しました:', error);
+    } finally {
+        fetchingNationwideGauges = false;
+    }
+}
+
+function scheduleNationwideGaugeRefresh() {
+    clearTimeout(nationwideGaugeTimer);
+    const delay = alignToFiveMinuteInterval();
+    nationwideGaugeTimer = setTimeout(() => {
+        fetchNationwideGauges();
+        nationwideGaugeTimer = setInterval(fetchNationwideGauges, 300000);
+    }, delay);
+}
+
 function scheduleWaterGaugeLoad(force = false) {
     clearTimeout(waterGaugeLoadTimer);
-    waterGaugeLoadTimer = setTimeout(() => loadWaterGauges(force === true), force === true ? 0 : 350);
+    const delay = force === true ? 0 : 350;
+    waterGaugeLoadTimer = setTimeout(() => {
+        waterGaugeLoadTimer = null;
+        loadWaterGauges(force === true);
+    }, delay);
 }
 
 function createWaterGaugeMarker(station) {
@@ -1202,33 +1364,70 @@ function createWaterGaugeMarker(station) {
     return marker;
 }
 
-function renderWaterGaugeMarkers(stations, redrawCameras = true) {
+function renderWaterGaugeMarkers(stations, redrawCameras = false) {
     if (!waterGaugeLayer) return;
     visibleWaterGaugeStations = (Array.isArray(stations) ? stations : [])
         .filter((station) => hasNumericValue(station.lat) && hasNumericValue(station.lng));
-    const stationMarkers = visibleWaterGaugeStations.map(createWaterGaugeMarker);
+    waterGaugeSpatialIndex = buildSpatialIndex(visibleWaterGaugeStations);
+    const renderSequence = ++waterGaugeRenderSequence;
     waterGaugeLayer.clearLayers();
-    waterGaugeLayer.addLayers(stationMarkers);
-    riverLoadState.gauges.count = stationMarkers.length;
-    if (redrawCameras && Object.keys(pointLatLngList).length > 0) {
-        drawMap();
-    }
+    riverLoadState.gauges.count = visibleWaterGaugeStations.length;
+
+    const addBatch = (start) => {
+        if (renderSequence !== waterGaugeRenderSequence) return;
+        const end = Math.min(start + WATER_GAUGE_RENDER_BATCH_SIZE, visibleWaterGaugeStations.length);
+        const batch = visibleWaterGaugeStations.slice(start, end).map(createWaterGaugeMarker);
+        waterGaugeLayer.addLayers(batch);
+        if (end < visibleWaterGaugeStations.length) {
+            setTimeout(() => addBatch(end), 0);
+        } else if (redrawCameras && Object.keys(pointLatLngList).length > 0) {
+            setTimeout(drawMap, 0);
+        }
+    };
+    addBatch(0);
 }
 
 async function loadWaterGauges(force = false) {
     if (!map || !waterGaugeLayer || !map.hasLayer(waterGaugeLayer)) return;
     const overview = map.getZoom() < WATER_GAUGE_DETAIL_ZOOM;
-    const bounds = boundsFromLeafletBounds(map.getBounds().pad(WATER_GAUGE_RENDER_PADDING));
+    const renderBounds = boundsFromLeafletBounds(map.getBounds().pad(WATER_GAUGE_RENDER_PADDING));
+
+    const nationwideData = nationwideGaugeCache?.data;
+    const hasCompleteNationwideData = nationwideData
+        && Number(nationwideData.failedPrefs || 0) === 0;
+    if (isFreshCache(nationwideGaugeCache) && hasCompleteNationwideData) {
+        const stations = Array.isArray(nationwideGaugeCache.data.stations) ? nationwideGaugeCache.data.stations : [];
+        const filtered = overview
+            ? stations.filter((s) => Number(s.level) > 0)
+            : stations.filter((s) => stationInBounds(s, renderBounds));
+        renderWaterGaugeMarkers(filtered);
+        riverLoadState.gauges.progress = 100;
+        riverLoadState.gauges.updatedAt = nationwideGaugeCache.data.updatedAt || '';
+        riverLoadState.gauges.error = '';
+        riverLoadState.gauges.loading = false;
+        updateRiverDataStatus();
+
+        const hint = document.getElementById('water-gauge-hint');
+        if (hint) {
+            if (overview) hint.textContent = '地図を拡大すると、表示範囲内の全水位計を表示します。現在は基準超過地点のみです。';
+            else hint.textContent = '表示範囲内の水位計を表示しています。ピンを押すと水位グラフを確認できます。';
+        }
+        return;
+    }
+
     const fetchBounds = boundsFromLeafletBounds(map.getBounds().pad(WATER_GAUGE_FETCH_PADDING));
     const requestKey = overview
         ? 'overview'
-        : `${Math.floor(map.getZoom())}:${bounds.north.toFixed(2)}:${bounds.south.toFixed(2)}:${bounds.east.toFixed(2)}:${bounds.west.toFixed(2)}`;
+        : `${Math.floor(map.getZoom())}:${renderBounds.north.toFixed(2)}:${renderBounds.south.toFixed(2)}:${renderBounds.east.toFixed(2)}:${renderBounds.west.toFixed(2)}`;
 
-    const cachedData = cachedGaugeDataFor(overview, bounds);
-    if (!force && requestKey === lastGaugeRequestKey && cachedData) return;
+    const cachedData = cachedGaugeDataFor(overview, renderBounds);
+    if (!force && requestKey === lastGaugeRequestKey && cachedData) {
+        renderCachedGaugeData(cachedData, renderBounds, overview);
+        return;
+    }
     lastGaugeRequestKey = requestKey;
     if (!force && cachedData) {
-        renderCachedGaugeData(cachedData, bounds, overview);
+        renderCachedGaugeData(cachedData, renderBounds, overview);
         return;
     }
 
@@ -1242,6 +1441,7 @@ async function loadWaterGauges(force = false) {
         controller.abort();
     }, 35000);
     riverLoadState.gauges.loading = true;
+    riverLoadState.gauges.progress = 10;
     riverLoadState.gauges.error = '';
     updateRiverDataStatus();
 
@@ -1258,7 +1458,8 @@ async function loadWaterGauges(force = false) {
             bounds: overview ? null : fetchBounds,
             data,
         };
-        renderCachedGaugeData(data, bounds, overview);
+        renderCachedGaugeData(data, renderBounds, overview);
+        riverLoadState.gauges.progress = 80;
         riverLoadState.gauges.updatedAt = data.updatedAt || '';
 
         const hint = document.getElementById('water-gauge-hint');
@@ -1277,6 +1478,7 @@ async function loadWaterGauges(force = false) {
         clearTimeout(timeout);
         if (requestId === gaugeRequestSequence) {
             riverLoadState.gauges.loading = false;
+            riverLoadState.gauges.progress = 100;
             if (activeGaugeController === controller) activeGaugeController = null;
             updateRiverDataStatus();
         }
