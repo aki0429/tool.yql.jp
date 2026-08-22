@@ -218,7 +218,8 @@ async function loadWarningLog() {
     for (const item of log.active) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'warning-region';
+      const warningClass = item.level >= 5 ? 'is-special' : item.level === 4 ? 'is-danger' : item.level === 3 ? 'is-warning' : 'is-advisory';
+      button.className = `warning-region ${warningClass}`;
       button.textContent = `${item.name}: ${item.label}`;
       button.onclick = () => showWarningRegionCameras(item);
       regions.append(button);
