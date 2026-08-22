@@ -64,8 +64,8 @@ export function warningDetails(warnings=[]) {
   }
 
   const labels = [];
-  if (rainLevel) labels.push(({ 2: '大雨注意報', 3: '大雨警報', 4: '大雨危険警報（浸水害）', 5: '大雨特別警報' })[rainLevel]);
-  if (landslideLevel) labels.push(({ 2: '土砂災害注意報', 3: '土砂災害警報', 4: '大雨危険警報（土砂災害）', 5: '土砂災害特別警報' })[landslideLevel]);
+  if (rainLevel) labels.push(({ 2: '大雨注意報', 3: '大雨警報', 4: '大雨危険警報', 5: '大雨特別警報' })[rainLevel]);
+  if (landslideLevel) labels.push(({ 2: '土砂災害注意報', 3: '土砂災害警報', 4: '土砂災害危険警報', 5: '土砂災害特別警報' })[landslideLevel]);
   return {
     level: Math.max(rainLevel, landslideLevel),
     label: labels.length ? labels.join('・') : '発表なし',
