@@ -8,7 +8,11 @@ import { loadConfig, ROOT, safeName, fetchJson, mapLimit, warningDetails, writeJ
 import { buildIndex } from './build-index.js';
 
 const config=await loadConfig(), main=path.resolve(ROOT,config.mainDirectory), publicDir=path.join(ROOT,'public'), warningLogFile=path.join(main,'warning-log.json'), attributionFont=path.join(ROOT,'assets','NotoSansCJKjp-Regular.otf');
-const attributionFilter=`drawtext=fontfile=${attributionFont}:text='提供\\：国土交通省':fontcolor=white:fontsize=h/28:x=w-tw-18:y=h-th-16:box=1:boxcolor=black@0.62:boxborderw=9`;
+const ffmpegEscape=value=>String(value||'').replaceAll('\\','\\\\').replaceAll(':','\\:').replaceAll("'","\\'").replaceAll('%','\\%');
+function attributionFilterFor(camera){
+  const place=[camera.prefecture,camera.municipality].filter(Boolean).join(' '),river=camera.riverName?`（${camera.riverName}）`:'',detail=`${place} / ${camera.name}${river}`;
+  return `drawtext=fontfile=${attributionFont}:text='提供\\：国土交通省':fontcolor=white:fontsize=h/28:x=w-tw-18:y=h-th-h/30-27:box=1:boxcolor=black@0.62:boxborderw=9,drawtext=fontfile=${attributionFont}:text='${ffmpegEscape(detail)}':fontcolor=white:fontsize=h/38:x=w-tw-18:y=h-th-13:box=1:boxcolor=black@0.62:boxborderw=7`;
+}
 let cameras=[], areaMap={}, active=new Map(), running=false, lastPoll=null, warningLog=[];
 const exportJobs=new Map();
 function normalizeMunicipalityName(value){
@@ -50,7 +54,7 @@ async function refreshMaster(){
       // river.go.jpのtwnCdと気象庁の市区町村コードは体系が違うため、
       // 都道府県コード先頭2桁＋市区町村名で気象庁class20コードへ対応付ける。
       const municipality=o.twnNm||'地域不明';
-      const record={...camera,municipalityCode:'',municipalityCodes:[],municipality,prefecture:o.prefNm||'',prefectureCode:o.prefCd||'',imageUrl:o.currProvUrl||o.currentUrl||info.currProvUrl||info.archiveList?.[0]?.arcUrl||''};
+      const record={...camera,municipalityCode:'',municipalityCodes:[],municipality,prefecture:o.prefNm||'',prefectureCode:o.prefCd||'',riverName:o.rvrNm||'',imageUrl:o.currProvUrl||o.currentUrl||info.currProvUrl||info.archiveList?.[0]?.arcUrl||''};
       record.municipalityCodes=assignMunicipalityCodes(record);record.municipalityCode=record.municipalityCodes[0]||'';master[camera.id]=record;
     }catch(e){console.warn('master',camera.id,e.message)}
     completed++;
@@ -64,6 +68,15 @@ async function refreshMaster(){
   }
   await writeJsonAtomic(masterFile,master); cameras=Object.values(master).filter(c=>c.imageUrl&&c.municipalityCode);
   console.log(`camera master: mapped=${mapped}, unmapped=${unmapped}, usable=${cameras.length}`);
+}
+async function ensureCameraDetails(camera){
+  if(!camera||camera.riverName)return camera;
+  try{
+    const info=await fetchJson(`${config.rivercamBaseUrl}/proxy.php?cam_id=${encodeURIComponent(camera.id)}`),o=info.obsInfo||info;
+    camera.riverName=o.rvrNm||o.riverName||'';
+    camera.prefecture=camera.prefecture||o.prefNm||'';camera.municipality=camera.municipality||o.twnNm||'';
+  }catch(error){console.warn(`camera details ${camera.id}: ${error.message}`)}
+  return camera;
 }
 function currentWarnings(payload){
   const result=new Map();
@@ -134,9 +147,9 @@ async function historyCheck(req,res){try{const plan=historyPlan(await readReques
 async function currentImage(res,cameraId){try{const camera=cameras.find(item=>item.id===cameraId);if(!camera)throw new Error('Camera not found');const response=await fetch(camera.imageUrl,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error(`Image HTTP ${response.status}`);const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':response.headers.get('content-type')||'image/jpeg','content-length':body.length,'cache-control':'no-cache'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
 async function historyImage(res,url){try{const cameraId=url.searchParams.get('cameraId')||'',stamp=url.searchParams.get('stamp')||'';if(!/^\d{6,15}$/.test(cameraId)||!/^\d{12}$/.test(stamp)||!cameras.some(item=>item.id===cameraId))throw new Error('Invalid request');const key=historyCameraKey(cameraId),response=await fetch(`https://cam.river.go.jp/cam/history/${stamp}/${key}.jpg`,{signal:AbortSignal.timeout(15000),headers:{'user-agent':'Mozilla/5.0 (RiverCam viewer)','referer':'https://www.river.go.jp/'}});if(!response.ok)throw new Error('Image not found');const body=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'content-type':'image/jpeg','content-length':body.length,'cache-control':'private, max-age=300'}).end(body)}catch(error){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'}).end(error.message)}}
 async function runFfmpeg(args){await new Promise((resolve,reject)=>{const ffmpeg=spawn('ffmpeg',args,{stdio:['ignore','ignore','pipe']});let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)))})}
-function videoArgs(input,output,fps,format){return format==='mp4'
-  ?['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
-  :['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`fps=${fps},${attributionFilter},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output]}
+function videoArgs(input,output,fps,format,camera){const attribution=attributionFilterFor(camera);return format==='mp4'
+  ?['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attribution},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
+  :['-hide_banner','-loglevel','error','-y','-framerate',String(fps),'-i',input,'-vf',`fps=${fps},${attribution},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output]}
 async function municipalityZip(req,res){let temporaryDirectory,output;try{
   const body=await readRequestJson(req),prefecture=String(body.prefecture||''),municipality=String(body.municipality||''),requestedIds=Array.isArray(body.cameraIds)?[...new Set(body.cameraIds.map(String))]:[];
   if(requestedIds.length>100)throw new Error('一度に保存できるカメラは100台までです');
@@ -147,11 +160,12 @@ async function municipalityZip(req,res){let temporaryDirectory,output;try{
   if(selected.length*samplePlan.dates.length>20000)throw new Error('全カメラの処理量が多すぎます。期間を短くするか取得間隔を長くしてください');
   temporaryDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'rivercam-zip-'));const encodedDirectory=path.join(temporaryDirectory,'encoded');await fs.mkdir(encodedDirectory);const results=[];
   await mapLimit(selected,1,async camera=>{const work=path.join(temporaryDirectory,`work-${camera.id}`);await fs.mkdir(work);try{
+    await ensureCameraDetails(camera);
     const frames=(await mapLimit(samplePlan.dates,4,date=>fetchHistoryFrame(camera.id,date))).filter(item=>item&&!item.error);
     if(!frames.length){results.push({id:camera.id,name:camera.name,status:'画像なし'});return}
     for(const [index,frame] of frames.entries())await fs.writeFile(path.join(work,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
     const fileName=`${safeName(camera.name)}_${camera.id}_${historyStamp(samplePlan.dates[0])}-${historyStamp(samplePlan.dates.at(-1))}.${format}`,target=path.join(encodedDirectory,fileName);
-    await runFfmpeg(videoArgs(path.join(work,'%06d.jpg'),target,fps,format));results.push({id:camera.id,name:camera.name,status:'成功',frames:frames.length,file:fileName});
+    await runFfmpeg(videoArgs(path.join(work,'%06d.jpg'),target,fps,format,camera));results.push({id:camera.id,name:camera.name,status:'成功',frames:frames.length,file:fileName});
   }catch(error){results.push({id:camera.id,name:camera.name,status:'失敗',error:error.message})}finally{await fs.rm(work,{recursive:true,force:true})}});
   if(!results.some(item=>item.status==='成功'))throw new Error('エンコードできるカメラがありません');
   await fs.writeFile(path.join(encodedDirectory,'結果.json'),JSON.stringify({prefecture:prefecture||null,municipality:municipality||null,selection:requestedIds.length?'slideshow':'municipality',start:body.start,end:body.end,intervalMinutes:body.intervalMinutes,fps,format,cameras:results},null,2));
@@ -172,13 +186,13 @@ async function buildCameraZip(body,update){
     update({phase:'encoding',total:selected.length,completed:0,current:'画像を取得しています'});
     // カメラ2台を並行処理し、各ffmpegは2スレッドでエンコードする。
     await mapLimit(selected,2,async camera=>{const work=path.join(temporaryDirectory,`work-${camera.id}`);await fs.mkdir(work);try{
-      update({current:`${camera.name} の画像を取得中`});
+      update({current:`${camera.name} の画像を取得中`});await ensureCameraDetails(camera);
       const frames=(await mapLimit(samplePlan.dates,4,date=>fetchHistoryFrame(camera.id,date))).filter(item=>item&&!item.error);
       if(!frames.length){results.push({id:camera.id,name:camera.name,status:'画像なし'});return}
       for(const [index,frame] of frames.entries())await fs.writeFile(path.join(work,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
       const fileName=`${safeName(camera.name)}_${camera.id}_${historyStamp(samplePlan.dates[0])}-${historyStamp(samplePlan.dates.at(-1))}.${format}`,target=path.join(encodedDirectory,fileName);
       update({current:`${camera.name} をエンコード中`});
-      const args=videoArgs(path.join(work,'%06d.jpg'),target,fps,format);if(format==='mp4')args.splice(args.indexOf('-preset'),0,'-threads','2');
+      const args=videoArgs(path.join(work,'%06d.jpg'),target,fps,format,camera);if(format==='mp4')args.splice(args.indexOf('-preset'),0,'-threads','2');
       await runFfmpeg(args);results.push({id:camera.id,name:camera.name,status:'成功',frames:frames.length,file:fileName});
     }catch(error){results.push({id:camera.id,name:camera.name,status:'失敗',error:error.message})}finally{await fs.rm(work,{recursive:true,force:true});completed++;update({completed,current:`${camera.name} 完了`})}});
     if(!results.some(item=>item.status==='成功'))throw new Error('エンコードできるカメラがありません');
@@ -198,12 +212,11 @@ setInterval(async()=>{const cutoff=Date.now()-2*3600000;for(const [id,job] of ex
 async function historyExport(req,res){let temporaryDirectory;try{
   const plan=historyPlan(await readRequestJson(req));if(!Number.isInteger(plan.fps)||plan.fps<1||plan.fps>10)throw new Error('再生速度は1～10枚/秒です');if(!['mp4','gif'].includes(plan.format))throw new Error('形式が不正です');
   const frames=await availableHistory(plan,true);if(!frames.length)throw new Error('指定期間の過去画像がありません');
+  await ensureCameraDetails(cameras.find(item=>item.id===plan.cameraId));
   temporaryDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'rivercam-history-'));
   for(const [index,frame] of frames.entries())await fs.writeFile(path.join(temporaryDirectory,`${String(index).padStart(6,'0')}.jpg`),frame.buffer);
   const output=path.join(temporaryDirectory,`export.${plan.format}`),input=path.join(temporaryDirectory,'%06d.jpg');
-  const args=plan.format==='mp4'
-    ?['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output]
-    :['-hide_banner','-loglevel','error','-y','-framerate',String(plan.fps),'-i',input,'-vf',`fps=${plan.fps},${attributionFilter},split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a`,'-loop','0',output];
+  const camera=cameras.find(item=>item.id===plan.cameraId),args=videoArgs(input,output,plan.fps,plan.format,camera);
   await new Promise((resolve,reject)=>{const ffmpeg=spawn('ffmpeg',args,{stdio:['ignore','ignore','pipe']});let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)))});
   const stat=await fs.stat(output),type=plan.format==='mp4'?'video/mp4':'image/gif';res.writeHead(200,{'content-type':type,'content-length':stat.size,'content-disposition':`attachment; filename="${plan.cameraId}_${plan.fps}fps.${plan.format}"`,'cache-control':'no-store'});const stream=(await import('node:fs')).createReadStream(output);stream.pipe(res);await once(stream,'close');
 }catch(error){if(!res.headersSent)res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end(`Export failed: ${error.message}`)}finally{if(temporaryDirectory)await fs.rm(temporaryDirectory,{recursive:true,force:true}).catch(()=>{})}}
@@ -237,7 +250,8 @@ async function exportVideo(req,res){
     await fs.writeFile(concatFile,lines.join('\n'));
     await new Promise((resolve,reject)=>{
       // CRF 26で画質とファイル容量のバランスを取る。
-      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attributionFilter},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
+      const attribution=attributionFilterFor({prefecture:'',municipality:city,name:camera,riverName:''});
+      const ffmpeg=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',concatFile,'-vf',`fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,${attribution},format=yuv420p`,'-c:v','libx264','-preset','medium','-crf','26','-movflags','+faststart',output],{stdio:['ignore','ignore','pipe']});
       let error='';ffmpeg.stderr.on('data',chunk=>error+=chunk);ffmpeg.on('error',reject);ffmpeg.on('close',code=>code===0?resolve():reject(new Error(`ffmpeg ${code}: ${error.trim()}`)));
     });
     const stat=await fs.stat(output),downloadName=encodeURIComponent(`${city}_${camera}_${fps}fps.mp4`);
